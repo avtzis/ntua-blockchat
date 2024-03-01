@@ -1,5 +1,5 @@
 import argparse
-import sys
+
 
 import socket
 import multiprocessing
@@ -11,11 +11,12 @@ from bootstrap_p import start_bootstrap
 from client_p import start_node
 
 def main():
-  #!implement argument parsing
+  
   parser = argparse.ArgumentParser()
- 
+  #defining arguments
   parser.add_argument("--nodes","-n" ,type=int,required=True, help="Number of nodes")
   parser.add_argument("--capacity","-c" ,type=int,required=True, help="Capacity")
+  #parse arguments
   args = parser.parse_args()
   
   nodes = args.nodes
