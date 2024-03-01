@@ -1,16 +1,16 @@
 import datetime
 
-from block import Block
+# from block import Block
 
 class Blockchain:
-  def __init__(self, chain=None):
-    self.chain = chain or [self.create_genesis_block()]
-
-  def create_genesis_block(self):
-    return Block(0, "1", "Genesis Block", "0")
+  def __init__(self, block_capacity):
+    self.chain = []
+    self.block_capacity = block_capacity
+    self.block_index = 0
 
   def add_block(self, block):
     self.chain.append(block)
+    self.block_index += 1
 
   def get_last_block(self):
     return self.chain[-1]

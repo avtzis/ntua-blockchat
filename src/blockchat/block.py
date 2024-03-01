@@ -2,19 +2,33 @@ import hashlib
 import time
 
 class Block:
-  def __init__(self, index, previous_hash, transactions, validator):
+  def __init__(self, index, validator, transactions, previous_hash):
     self.index = index
-    self.previous_hash = previous_hash
     self.timestamp = time.time()
-    self.transactions = transactions
     self.validator = validator
+    self.transactions = transactions
+    self.previous_hash = previous_hash
+
     self.hash = self.calculate_hash()
 
-  def __str__(self):
-    return str(self.index) + self.previous_hash + str(self.timestamp) + self.transactions + self.hash
+  def __print__(self):
+    return {
+      'index': self.index,
+      'timestamp': self.timestamp,
+      'validator': self.validator,
+      'transactions': self.transactions,
+      'previous_hash': self.previous_hash,
+      'hash': self.hash
+    }
 
   def calculate_hash(self):
-    return hashlib.sha256(str(self.index).encode() + self.previous_hash.encode() + str(self.timestamp).encode() + self.transactions.encode()).hexdigest()
+    block_data = (
+      str(self.index)
+      + ':' + str(self.timestamp)
+      + ':' + str(self.validator)
+      + ':'.join(self.transactions)
+      + ':' + str(self.previous_hash)
+    )
 
-  def is_valid(self):
-    return self.hash == self.calculate_hash()
+    return hashlib.sha256(block_data).hexdigest()
+
