@@ -18,13 +18,14 @@ class Bootstrap(Node):
     self.id = 0
     self.nodes = []
 
-  def create_genesis_block(self):
+  def create_genesis_block(self, nodes_count):
     # Create the transaction
     transaction = Transaction(
       '0',
       self.wallet.public_key,
       'coins',
       self.nonce,
+      1000*nodes_count,
       None
     )
 

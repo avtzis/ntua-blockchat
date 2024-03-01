@@ -8,7 +8,7 @@ def start_bootstrap(pipe_conn, nodes, blockchain):
   bootstrap = node.Bootstrap(blockchain)
 
   # Create the genesis block
-  bootstrap.create_genesis_block()
+  bootstrap.create_genesis_block(nodes)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:

@@ -10,5 +10,6 @@ class Transaction:
   def __str__(self):
     return f"{self.sender_address}:{self.receiver_address}:{self.type_of_transaction}:{self.value}"
 
+
   # def __repr__(self):
   #   return f"Transaction: {self.sender} -> {self.receiver} : {self.amount} : {self.timestamp}"

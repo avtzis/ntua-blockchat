@@ -26,9 +26,9 @@ class Block:
       str(self.index)
       + ':' + str(self.timestamp)
       + ':' + str(self.validator)
-      + ':'.join(self.transactions)
+      + ':'.join(map(str, self.transactions))
       + ':' + str(self.previous_hash)
     )
 
-    return hashlib.sha256(block_data).hexdigest()
+    return hashlib.sha256(block_data.encode()).hexdigest()
 
