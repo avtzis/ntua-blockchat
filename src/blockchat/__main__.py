@@ -1,4 +1,6 @@
-# import sys
+import argparse
+import sys
+
 import socket
 import multiprocessing
 
@@ -9,9 +11,15 @@ from bootstrap_p import start_bootstrap
 from client_p import start_node
 
 def main():
-  #!implement argument parsing
-  nodes = 5
-  capacity = 10
+  
+  parser = argparse.ArgumentParser()
+  # defining arguments
+  parser.add_argument("--nodes","-n" ,type=int, help="Number of nodes")
+  parser.add_argument("--capacity","-c" ,type=int, help="Capacity")
+  args = parser.parse_args()
+  
+  nodes = args.nodes
+  capacity = args.capacity
 
   # Create the blockchain
   bc = blockchain.Blockchain(capacity)
