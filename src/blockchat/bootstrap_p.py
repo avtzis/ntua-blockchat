@@ -1,4 +1,5 @@
 import socket
+import json
 
 import node
 import blockchain
@@ -9,6 +10,7 @@ def start_bootstrap(pipe_conn, nodes, blockchain):
 
   # Create the genesis block
   bootstrap.create_genesis_block(nodes)
+  print('[BOOTSTRAP] Blockchain: ', dict(bootstrap.blockchain.chain[0]))
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -27,14 +29,14 @@ def start_bootstrap(pipe_conn, nodes, blockchain):
 
       # Receive the port and key from the node
       message, address = s.recvfrom(1024)
-      message = message.decode()
+      message = json.loads(message.decode())
 
       # Check if the message is a port message
-      if message.startswith('port'):
-        # Parse the port and key from the message
-        port = message.split(':')[1]
-        key = message.split(':')[3]
-        print(f'[BOOTSTRAP] Received port {port} and key {key} from {address}')
+      if message.get('port') is not None and message.get('key') is not None:
+        port = message['port']
+        key = message['key']
+        key_short = key[27:32]
+        print(f'[BOOTSTRAP] Received port {port} and key {key_short} from {address}')
 
         # Add the node to the list
         bootstrap.add_node(port, key)

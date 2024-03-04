@@ -1,4 +1,5 @@
 import socket
+import json
 
 import node
 
@@ -13,7 +14,10 @@ def start_node(bootstrap_port):
     port = str(s.getsockname()[1])
 
     # Send the port and key to the bootstrap node
-    message = f'port:{port}:key:{client.wallet.public_key}'
+    message = json.dumps({
+      'port': port,
+      'key': client.wallet.public_key
+    })
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
     # Receive the id from the bootstrap node

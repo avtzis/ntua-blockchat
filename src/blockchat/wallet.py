@@ -5,7 +5,7 @@ class Wallet:
     self.private_key, self.public_key = self.generate_key()
 
   def generate_key(self):
-    # Generate a random RSA key
+    # Generate a random RSA key #!fix random
     key = RSA.generate(2048)
     private_key = key.export_key()
     public_key = key.publickey().export_key()

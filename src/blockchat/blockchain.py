@@ -3,10 +3,10 @@ import datetime
 # from block import Block
 
 class Blockchain:
-  def __init__(self, block_capacity):
-    self.chain = []
+  def __init__(self, block_capacity, chain=[], block_index=0):
+    self.chain = chain
     self.block_capacity = block_capacity
-    self.block_index = 0
+    self.block_index = block_index
 
   def add_block(self, block):
     self.chain.append(block)
@@ -30,3 +30,16 @@ class Blockchain:
 
   def __str__(self):
     return str([str(block) for block in self.chain])
+
+  def get_chain(self):
+    return [block.__dict__() for block in self.chain]
+
+  def __dict__(self):
+    return {
+      'chain': [block.__dict__() for block in self.chain],
+      'block_capacity': self.block_capacity,
+      'block_index': self.block_index
+    }
+
+  def __print__(self):
+    return str(self)
