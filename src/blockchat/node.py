@@ -24,7 +24,7 @@ class Bootstrap(Node):
       '0',
       self.wallet.public_key,
       'coins',
-      1000*nodes_count,
+      1000 * nodes_count,
       self.nonce,
       None
     )

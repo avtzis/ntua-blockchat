@@ -1,4 +1,4 @@
-import datetime
+# import datetime
 
 # from block import Block
 
@@ -31,15 +31,10 @@ class Blockchain:
   def __str__(self):
     return str([str(block) for block in self.chain])
 
-  def get_chain(self):
-    return [block.__dict__() for block in self.chain]
-
-  def __dict__(self):
-    return {
-      'chain': [block.__dict__() for block in self.chain],
-      'block_capacity': self.block_capacity,
-      'block_index': self.block_index
-    }
-
   def __print__(self):
     return str(self)
+
+  def __iter__(self):
+    yield 'block_capacity', self.block_capacity
+    yield 'block_index', self.block_index
+    yield 'chain', [dict(block) for block in self.chain]

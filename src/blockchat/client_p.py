@@ -1,11 +1,12 @@
 import socket
 import json
 
-import node
+from node import Node
+from blockchain import Blockchain
 
 def start_node(bootstrap_port):
   # Create the client node
-  client = node.Node()
+  client = Node()
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -20,7 +21,11 @@ def start_node(bootstrap_port):
     })
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
-    # Receive the id from the bootstrap node
-    message, address = s.recvfrom(1024)
-    client.id = int(message.decode().split(':')[1])
-    print(f'[NODE-{client.id}] Received id {client.id} from {address}')
+    # Wait for the response containing the id and blockchain
+    message, address = s.recvfrom(2048)
+    message = json.loads(message.decode())
+
+    # Set the id and blockchain
+    client.id = message.pop('id')
+    client.blockchain = Blockchain(**message)
+    print(f'[NODE-{client.id}] Received blockchain {client.blockchain} from {address}')

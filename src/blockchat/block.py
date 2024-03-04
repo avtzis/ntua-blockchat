@@ -12,29 +12,18 @@ class Block:
     self.hash = self.calculate_hash()
 
   def __print__(self):
-    return str(self.__dict__())
+    return str(self)
 
-  def __dict__(self):
-    return {
-      'index': self.index,
-      'timestamp': self.timestamp,
-      'validator': self.validator,
-      'transactions': self.transactions,
-      'previous_hash': self.previous_hash,
-      'hash': self.hash
-    }
+  def __iter__(self):
+    yield 'index', self.index
+    yield 'timestamp', self.timestamp
+    yield 'validator', self.validator
+    yield 'transactions', [dict(transaction) for transaction in self.transactions]
+    yield 'previous_hash', self.previous_hash
+    yield 'hash', self.hash
 
   def __str__(self):
-    return str({
-      'index': self.index,
-      'timestamp': self.timestamp,
-      'validator': self.validator,
-      'transactions': [transaction.__dict__() for transaction in self.transactions],
-      'previous_hash': self.previous_hash,
-      'hash': self.hash
-    })
-
-  # def __iter__
+    return str(dict(self))
 
   def calculate_hash(self):
     block_data = (
@@ -46,4 +35,3 @@ class Block:
     )
 
     return hashlib.sha256(block_data.encode()).hexdigest()
-
