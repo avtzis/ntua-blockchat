@@ -1,16 +1,16 @@
 import socket
 import json
 
-import node
+from node import Bootstrap
 # import blockchain
 
 def start_bootstrap(pipe_conn, nodes, blockchain):
   # Create the bootstrap node
-  bootstrap = node.Bootstrap(blockchain)
+  bootstrap = Bootstrap(blockchain)
 
   # Create the genesis block
   bootstrap.create_genesis_block(nodes)
-  print('[BOOTSTRAP] Blockchain: ', bootstrap.blockchain)
+  # print('[BOOTSTRAP] Blockchain: ', bootstrap.blockchain)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -27,21 +27,23 @@ def start_bootstrap(pipe_conn, nodes, blockchain):
     while len(bootstrap.nodes) < nodes:
       node_id += 1
 
-      # Receive the port and key from the node
-      message, address = s.recvfrom(1024)
+      # Receive the key from the node
+      message, (address, port) = s.recvfrom(1024)
       message = json.loads(message.decode())
 
-      # Check if the message is a port message
-      if message.get('port') is not None and message.get('key') is not None:
-        port = message['port']
+      # Check if the message is a public-key message
+      if message.get('key') is not None:
         key = message['key']
-        key_short = key[27:32]
-        print(f'[BOOTSTRAP] Received port {port} and key {key_short} from {address}')
+        print(f'[BOOTSTRAP] Received key {key[100:111]} from {port}')
 
         # Add the node to the list
-        bootstrap.add_node(port, key)
+        bootstrap.add_node(node_id, address, port, key)
 
         # Send the node its id and current blockchain
         message = dict(bootstrap.blockchain)
         message['id'] = node_id
-        s.sendto(json.dumps(message).encode(), address)
+        s.sendto(json.dumps(message).encode(), (address, port))
+
+    # Broadcast node information to all nodes
+    for node in bootstrap.nodes:
+      s.sendto(json.dumps(bootstrap.nodes).encode(), (node['address'], node['port']))

@@ -22,10 +22,16 @@ def start_node(bootstrap_port):
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
     # Wait for the response containing the id and blockchain
-    message, address = s.recvfrom(2048)
+    message, (address, port) = s.recvfrom(2048)
     message = json.loads(message.decode())
 
     # Set the id and blockchain
     client.id = message.pop('id')
     client.blockchain = Blockchain(**message)
-    print(f'[NODE-{client.id}] Received blockchain {client.blockchain} from {address}')
+    # print(f'[NODE-{client.id}] Received blockchain {client.blockchain} from {address}')
+    print(f'[NODE-{client.id}] Received blockchain from {port}')
+
+    # Wait for the nodes list
+    message, (address, port) = s.recvfrom(4096)
+    client.nodes = json.loads(message.decode())
+    print(f'[NODE-{client.id}] Received nodes from {port}')

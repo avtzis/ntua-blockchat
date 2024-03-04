@@ -9,6 +9,7 @@ class Node:
     self.BCC = 0
     self.nonce = 0
     self.blockchain = None
+    self.nodes = []
 
 class Bootstrap(Node):
   def __init__(self, blockchain):
@@ -16,7 +17,6 @@ class Bootstrap(Node):
 
     self.blockchain = blockchain
     self.id = 0
-    self.nodes = []
 
   def create_genesis_block(self, nodes_count):
     # Create the transaction
@@ -38,5 +38,11 @@ class Bootstrap(Node):
     # Add the block to the blockchain
     self.blockchain.add_block(genesis_block)
 
-  def add_node(self, port, key):
-    self.nodes.append((port, key))
+  def add_node(self, id, address, port, key, coins=0):
+    self.nodes.append({
+      'id': id,
+      'address': address,
+      'port': port,
+      'key': key,
+      'coins': coins
+    })
