@@ -1,3 +1,5 @@
+import json
+
 class Transaction:
   def __init__(self, sender_address, receiver_address, type_of_transaction, value, nonce, signature):
     self.sender_address = sender_address
@@ -8,7 +10,7 @@ class Transaction:
     self.signature = signature
 
   def __str__(self):
-    return f"{self.sender_address}:{self.receiver_address}:{self.type_of_transaction}:{self.value}"
+    return json.dumps(dict(self))
 
   def __iter__(self):
     yield 'sender_address', self.sender_address
@@ -17,6 +19,3 @@ class Transaction:
     yield 'value', self.value
     yield 'nonce', self.nonce
     yield 'signature', self.signature
-
-  # def __repr__(self):
-  #   return f"Transaction: {self.sender} -> {self.receiver} : {self.amount} : {self.timestamp}"

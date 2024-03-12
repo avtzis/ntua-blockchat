@@ -13,11 +13,12 @@ def start_node(bootstrap_port, nodes_count):
     # Bind to a random port
     s.bind(('localhost', 0))
     port = str(s.getsockname()[1])
+    client.socket = s
 
     # Send the wallet key to the bootstrap node
     message = json.dumps({
       'message_type': 'key',
-      'key': client.wallet.public_key
+      'key': client.wallet.get_address()
     })
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 

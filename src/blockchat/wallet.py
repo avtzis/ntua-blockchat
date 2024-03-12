@@ -1,4 +1,5 @@
-from Crypto.PublicKey import RSA
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 
 class Wallet:
   def __init__(self):
@@ -6,8 +7,18 @@ class Wallet:
 
   @staticmethod
   def generate_key():
-    # Generate a random RSA key
-    key = RSA.generate(2048)
-    private_key = key.export_key()
-    public_key = key.publickey().export_key()
-    return private_key.decode(), public_key.decode()
+    private_key = rsa.generate_private_key(
+      public_exponent=65537,
+      key_size=2048
+    )
+    public_key = private_key.public_key()
+
+    return private_key, public_key
+
+  def get_address(self):
+    public_pem = self.public_key.public_bytes(
+      encoding=serialization.Encoding.PEM,
+      format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    return public_pem.decode()

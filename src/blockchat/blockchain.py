@@ -8,6 +8,7 @@ class Blockchain:
     self.block_capacity = block_capacity
     self.block_index = block_index
     self.nodes = nodes
+    self.fee_rate = 0.03
 
   def add_block(self, block):
     self.chain.append(block)

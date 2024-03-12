@@ -17,6 +17,7 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
     # Bind to a random port
     s.bind(('localhost', 0))
     port = s.getsockname()[1]
+    bootstrap.socket = s
 
     # Send the port to the main process and close the pipe
     pipe_conn.send(port)
@@ -56,4 +57,7 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
 
       if message['message_type'] == 'ack':
         remaining_nodes.remove(message['id'])
-        print(f'[BOOTSTRAP] Node {message["id"]} ready')
+        print(f'[BOOTSTRAP] Node {message["id"]} ready for transactions')
+
+    # Distribute the coins to all nodes
+

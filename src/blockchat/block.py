@@ -1,4 +1,5 @@
 import hashlib
+import json
 from datetime import datetime
 
 class Block:
@@ -26,12 +27,20 @@ class Block:
     return str(dict(self))
 
   def calculate_hash(self):
-    block_data = (
-      str(self.index)
-      + ':' + str(self.timestamp)
-      + ':' + str(self.validator)
-      + ':'.join(map(str, self.transactions))
-      + ':' + str(self.previous_hash)
-    )
+    # block_data = (
+    #   str(self.index)
+    #   + ':' + str(self.timestamp)
+    #   + ':' + str(self.validator)
+    #   + ':'.join(map(str, self.transactions))
+    #   + ':' + str(self.previous_hash)
+    # )
+
+    block_data = json.dumps({
+      'index': self.index,
+      'timestamp': self.timestamp,
+      'validator': self.validator,
+      'transactions': [dict(transaction) for transaction in self.transactions],
+      'previous_hash': self.previous_hash
+    })
 
     return hashlib.sha256(block_data.encode()).hexdigest()
