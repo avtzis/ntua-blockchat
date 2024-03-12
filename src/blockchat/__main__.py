@@ -41,7 +41,7 @@ def main():
   for i in range(nodes):
     node_process = multiprocessing.Process(
       target=start_node,
-      args=(bootstrap_port,)
+      args=(bootstrap_port, nodes,)
     )
     node_process.start()
 

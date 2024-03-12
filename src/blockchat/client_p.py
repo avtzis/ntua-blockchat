@@ -4,7 +4,7 @@ import json
 from node import Node
 from blockchain import Blockchain
 
-def start_node(bootstrap_port):
+def start_node(bootstrap_port, nodes_count):
   # Create the client node
   client = Node()
 
@@ -14,24 +14,32 @@ def start_node(bootstrap_port):
     s.bind(('localhost', 0))
     port = str(s.getsockname()[1])
 
-    # Send the port and key to the bootstrap node
+    # Send the wallet key to the bootstrap node
     message = json.dumps({
-      'port': port,
+      'message_type': 'key',
       'key': client.wallet.public_key
     })
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
-    # Wait for the response containing the id and blockchain
-    message, (address, port) = s.recvfrom(2048)
+    # Wait for the response containing all essential information
+    message, (address, port) = s.recvfrom(nodes_count*1024)
     message = json.loads(message.decode())
 
-    # Set the id and blockchain
-    client.id = message.pop('id')
-    client.blockchain = Blockchain(**message)
-    # print(f'[NODE-{client.id}] Received blockchain {client.blockchain} from {address}')
-    print(f'[NODE-{client.id}] Received blockchain from {port}')
+    if message['message_type'] == 'id':
+      # Set the id
+      client.id = message['id']
 
-    # Wait for the nodes list
-    message, (address, port) = s.recvfrom(4096)
-    client.nodes = json.loads(message.decode())
-    print(f'[NODE-{client.id}] Received nodes from {port}')
+      # Set the blockchain
+      client.blockchain = Blockchain(**message['blockchain'])
+      print(f'[NODE-{client.id}] Received id and blockchain from {port}')
+
+      # if client.id == 1:
+      #   print(f'[NODE-{client.id}] Blockchain: {client.blockchain}')
+      #   print(f'[NODE-{client.id}] Nodes: {client.blockchain.nodes}')
+
+      # Send an ack to the bootstrap node
+      message = json.dumps({
+        'message_type': 'ack',
+        'id': client.id
+      })
+      s.sendto(message.encode(), ('localhost', bootstrap_port))

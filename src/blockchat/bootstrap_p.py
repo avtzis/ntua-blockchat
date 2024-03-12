@@ -4,12 +4,12 @@ import json
 from node import Bootstrap
 # import blockchain
 
-def start_bootstrap(pipe_conn, nodes, blockchain):
+def start_bootstrap(pipe_conn, nodes_count, blockchain):
   # Create the bootstrap node
   bootstrap = Bootstrap(blockchain)
 
   # Create the genesis block
-  bootstrap.create_genesis_block(nodes)
+  bootstrap.create_genesis_block(nodes_count)
   # print('[BOOTSTRAP] Blockchain: ', bootstrap.blockchain)
 
   # Start the UDP server
@@ -24,7 +24,7 @@ def start_bootstrap(pipe_conn, nodes, blockchain):
 
     # Wait for nodes to connect
     node_id = 0
-    while len(bootstrap.nodes) < nodes:
+    while len(blockchain.nodes) < nodes_count:
       node_id += 1
 
       # Receive the key from the node
@@ -32,18 +32,28 @@ def start_bootstrap(pipe_conn, nodes, blockchain):
       message = json.loads(message.decode())
 
       # Check if the message is a public-key message
-      if message.get('key') is not None:
+      if message['message_type'] == 'key':
         key = message['key']
         print(f'[BOOTSTRAP] Received key {key[100:111]} from {port}')
 
         # Add the node to the list
         bootstrap.add_node(node_id, address, port, key)
 
-        # Send the node its id and current blockchain
-        message = dict(bootstrap.blockchain)
-        message['id'] = node_id
-        s.sendto(json.dumps(message).encode(), (address, port))
+    # Broadcast id and blockchain to all nodes
+    for node in blockchain.nodes:
+      message = json.dumps({
+        'message_type': 'id',
+        'id': node['id'],
+        'blockchain': dict(bootstrap.blockchain)
+      })
+      s.sendto(message.encode(), (node['address'], node['port']))
 
-    # Broadcast node information to all nodes
-    for node in bootstrap.nodes:
-      s.sendto(json.dumps(bootstrap.nodes).encode(), (node['address'], node['port']))
+    # Wait for the nodes to finish
+    remaining_nodes = [node['id'] for node in blockchain.nodes]
+    while remaining_nodes:
+      message, (address, port) = s.recvfrom(1024)
+      message = json.loads(message.decode())
+
+      if message['message_type'] == 'ack':
+        remaining_nodes.remove(message['id'])
+        print(f'[BOOTSTRAP] Node {message["id"]} ready')

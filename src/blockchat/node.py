@@ -6,10 +6,9 @@ class Node:
   def __init__(self):
     self.id = None
     self.wallet = Wallet()
-    self.BCC = 0
+    self.coins = 0
     self.nonce = 0
     self.blockchain = None
-    self.nodes = []
 
 class Bootstrap(Node):
   def __init__(self, blockchain):
@@ -39,7 +38,7 @@ class Bootstrap(Node):
     self.blockchain.add_block(genesis_block)
 
   def add_node(self, id, address, port, key, coins=0):
-    self.nodes.append({
+    self.blockchain.nodes.append({
       'id': id,
       'address': address,
       'port': port,

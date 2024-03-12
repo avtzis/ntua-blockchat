@@ -3,10 +3,11 @@
 # from block import Block
 
 class Blockchain:
-  def __init__(self, block_capacity, chain=[], block_index=0):
+  def __init__(self, block_capacity, chain=[], block_index=0, nodes=[]):
     self.chain = chain
     self.block_capacity = block_capacity
     self.block_index = block_index
+    self.nodes = nodes
 
   def add_block(self, block):
     self.chain.append(block)
@@ -38,3 +39,4 @@ class Blockchain:
     yield 'block_capacity', self.block_capacity
     yield 'block_index', self.block_index
     yield 'chain', [dict(block) for block in self.chain]
+    yield 'nodes', self.nodes
