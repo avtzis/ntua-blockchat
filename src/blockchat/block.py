@@ -3,14 +3,14 @@ import json
 from datetime import datetime
 
 class Block:
-  def __init__(self, index, validator, transactions, previous_hash):
+  def __init__(self, index, validator, transactions, previous_hash, timestamp=None, hash=None):
     self.index = index
-    self.timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+    self.timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f') if timestamp is None else timestamp
     self.validator = validator
     self.transactions = transactions
     self.previous_hash = previous_hash
 
-    self.hash = self.calculate_hash()
+    self.hash = self.calculate_hash() if hash is None else hash
 
   def __print__(self):
     return str(self)
@@ -27,14 +27,6 @@ class Block:
     return str(dict(self))
 
   def calculate_hash(self):
-    # block_data = (
-    #   str(self.index)
-    #   + ':' + str(self.timestamp)
-    #   + ':' + str(self.validator)
-    #   + ':'.join(map(str, self.transactions))
-    #   + ':' + str(self.previous_hash)
-    # )
-
     block_data = json.dumps({
       'index': self.index,
       'timestamp': self.timestamp,

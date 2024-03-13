@@ -1,4 +1,5 @@
 import json
+import socket
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
@@ -11,11 +12,33 @@ class Node:
   def __init__(self):
     self.id = None
     self.wallet = Wallet()
-    self.balance = 0
+    self.balance = 0.0
     self.nonce = 0
     self.blockchain = None
     self.stake = 0
     self.socket = None
+
+    self.current_block = []
+    self.current_fees = 0
+
+  @staticmethod
+  def send(message, address, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+      s.sendto(message.encode(), (address, port))
+
+  def execute_transaction(self, receiver_id, type_of_transaction, value):
+    receiver = next((node for node in self.blockchain.nodes if node['id'] == receiver_id), None)
+    if not receiver:
+      return False
+
+    transaction = self.create_transaction(receiver['key'], type_of_transaction, value)
+    # if not self.validate_transaction(transaction):
+    #   return False
+
+    self.broadcast_transaction(transaction)
+    # self.register_transaction(transaction)
+
+    return True
 
   def create_transaction(self, receiver_address, type_of_transaction, value):
     transaction = {
@@ -26,7 +49,7 @@ class Node:
       'nonce': self.nonce,
     }
 
-    transaction['signature'] = self.sign_transaction(transaction)
+    transaction['signature'] = self.sign_transaction(transaction).decode()
 
     return Transaction(**transaction)
 
@@ -44,14 +67,42 @@ class Node:
 
     return signature
 
-  def execute_transaction(self, transaction):
-    pass
+  def register_transaction(self, transaction):
+    sender = next((node for node in self.blockchain.nodes if node['key'] == transaction['sender_address']), None)
+    receiver = next((node for node in self.blockchain.nodes if node['key'] == transaction['receiver_address']), None)
+
+    if transaction['type_of_transaction'] == 'coins':
+      total_cost = (1 + self.blockchain.fee_rate) * transaction['value']
+      sender['balance'] -= total_cost
+      receiver['balance'] += transaction['value']
+      self.current_fees += total_cost - transaction['value']
+
+    if transaction['type_of_transaction'] == 'message':
+      sender['balance'] -= len(transaction['value'])
+      self.current_fees += len(transaction['value'])
+
+    self.current_block.append(transaction)
+    if len(self.current_block) == self.blockchain.block_capacity:
+      self.mine_block()
 
   def broadcast_transaction(self, transaction):
-    pass
+    message = json.dumps({
+      'message_type': 'transaction',
+      'transaction': dict(transaction)
+    })
+
+    for node in self.blockchain.nodes:
+      self.send(message, node['address'], node['port'])
+
+  def receive_transaction(self, transaction):
+    if not self.validate_transaction(transaction):
+      return False
+
+    self.register_transaction(transaction)
+    return True
 
   def verify_signature(self, transaction):
-    signature = transaction.pop('signature')
+    signature = transaction.pop('signature').encode()
     transaction_bytes = json.dumps(transaction).encode()
     public_key = serialization.load_pem_public_key(transaction['sender_address'])
 

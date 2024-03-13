@@ -1,10 +1,10 @@
 # import datetime
 
-# from block import Block
+from block import Block
 
 class Blockchain:
   def __init__(self, block_capacity, chain=[], block_index=0, nodes=[]):
-    self.chain = chain
+    self.chain = [Block(**block) for block in chain]
     self.block_capacity = block_capacity
     self.block_index = block_index
     self.nodes = nodes
