@@ -19,13 +19,16 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
     port = s.getsockname()[1]
     bootstrap.socket = s
 
+    # Add bootstrap to the list of nodes
+    bootstrap.add_node(0, 'localhost', port, bootstrap.wallet.get_address(), bootstrap.balance)
+
     # Send the port to the main process and close the pipe
     pipe_conn.send(port)
     pipe_conn.close()
 
     # Wait for nodes to connect
     node_id = 0
-    while len(blockchain.nodes) < nodes_count:
+    while len(blockchain.nodes) - 1 < nodes_count:
       node_id += 1
 
       # Receive the key from the node
@@ -42,6 +45,10 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
 
     # Broadcast id and blockchain to all nodes
     for node in blockchain.nodes:
+      # Skip if node is the bootstrap
+      if node['id'] == 0:
+        continue
+
       message = json.dumps({
         'message_type': 'id',
         'id': node['id'],
@@ -50,6 +57,7 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
       s.sendto(message.encode(), (node['address'], node['port']))
 
     # Wait for the nodes to finish
+    blockchain.nodes.pop(0)
     remaining_nodes = [node['id'] for node in blockchain.nodes]
     while remaining_nodes:
       message, (address, port) = s.recvfrom(1024)
@@ -60,4 +68,5 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
         print(f'[BOOTSTRAP] Node {message["id"]} ready for transactions')
 
     # Distribute the coins to all nodes
-
+    for node in blockchain.nodes:
+      bootstrap.execute_transaction(node['id'], 'coins', 1000)

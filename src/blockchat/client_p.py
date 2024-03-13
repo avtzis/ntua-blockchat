@@ -23,7 +23,7 @@ def start_node(bootstrap_port, nodes_count):
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
     # Wait for the response containing all essential information
-    message, (address, port) = s.recvfrom(nodes_count*1024)
+    message, (address, port) = s.recvfrom((nodes_count + 1)*1024)
     message = json.loads(message.decode())
 
     if message['message_type'] == 'id':
@@ -44,3 +44,11 @@ def start_node(bootstrap_port, nodes_count):
         'id': client.id
       })
       s.sendto(message.encode(), ('localhost', bootstrap_port))
+
+    # Receive initial coin transactions from bootstrap
+    for i in range(nodes_count):
+      message, (address, port) = s.recvfrom(4096)
+      message = json.loads(message.decode())
+
+      if message['message_type'] == 'transaction':
+        client.receive_transaction(message['transaction'])
