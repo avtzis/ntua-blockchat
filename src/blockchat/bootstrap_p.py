@@ -83,23 +83,28 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
       bootstrap.execute_transaction(node['id'], 'coins', 1000)
 
     # Listen for messages
-    while True:
-      message, (address, port) = s.recvfrom(4096)
+    try:
+      while True:
+        message, (address, port) = s.recvfrom(4096)
 
-      # Try parsing the message
-      try:
-        message = json.loads(message.decode())
-      except json.JSONDecodeError:
-        print(f'[BOOTSTRAP] Invalid message received from {port}')
-        continue
+        # Try parsing the message
+        try:
+          message = json.loads(message.decode())
+        except json.JSONDecodeError:
+          print(f'[BOOTSTRAP] Invalid message received from {port}')
+          continue
 
-      if message['message_type'] == 'transaction':
-        print(f'[BOOTSTRAP] Received transaction from {port}')
-        bootstrap.receive_transaction(message['transaction'])
+        if message['message_type'] == 'transaction':
+          print(f'[BOOTSTRAP] Received transaction from {port}')
+          bootstrap.receive_transaction(message['transaction'])
 
-      elif message['message_type'] == 'block':
-        print(f'[BOOTSTRAP] Received block from {port}')
-        bootstrap.receive_block(message['block'])
+        elif message['message_type'] == 'block':
+          print(f'[BOOTSTRAP] Received block from {port}')
+          bootstrap.receive_block(message['block'])
 
-      else:
-        print(f'[BOOTSTRAP] Invalid message received from {port}')
+        else:
+          print(f'[BOOTSTRAP] Invalid message received from {port}')
+    except KeyboardInterrupt:
+      print('[BOOTSTRAP] Bootstrap process terminated by user')
+      s.close()
+      return

@@ -1,10 +1,5 @@
 import argparse
-
-
-import socket
 import multiprocessing
-
-import node
 import blockchain
 
 from bootstrap_p import start_bootstrap
@@ -13,10 +8,10 @@ from client_p import start_node
 def main():
 
   parser = argparse.ArgumentParser()
-  #defining arguments
+  # defining arguments
   parser.add_argument("--nodes","-n" ,type=int,required=True, help="Number of nodes")
   parser.add_argument("--capacity","-c" ,type=int,required=True, help="Capacity")
-  #parse arguments
+  # parse arguments
   args = parser.parse_args()
 
   nodes = args.nodes
@@ -46,9 +41,10 @@ def main():
     node_process.start()
 
   # Wait for the bootstrap process to terminate
-  bootstrap_process.join()
-  print('[INIT] Bootstrap process terminated')
-  print('[INIT] Program will now exit.')
+  # bootstrap_process.join()
+  # print('[INIT] Bootstrap process terminated')
+  print('[INIT] This process will now exit.')
+
 
 if __name__ == '__main__':
   main()
