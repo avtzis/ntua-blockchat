@@ -4,7 +4,7 @@ import json
 from node import Node
 from blockchain import Blockchain
 
-def start_node(bootstrap_port, nodes_count):
+def start_node(bootstrap_address, bootstrap_port, nodes_count):
   # Create the client node
   client = Node()
 
@@ -12,14 +12,37 @@ def start_node(bootstrap_port, nodes_count):
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
     # Bind to a random port
     s.bind(('localhost', 0))
-    port = str(s.getsockname()[1])
+    address, port = s.getsockname()
     client.socket = s
+    print(f'[NODE] Client node listening on {address}:{port}')
+
+    # Check if bootstrap is available
+    s.settimeout(0.1)
+    while True:
+      try:
+        print('[NODE] Pinging bootstrap node...')
+        s.sendto(b'ping', (bootstrap_address, bootstrap_port))
+        message, (address, port) = s.recvfrom(1024)
+
+        if message == b'pong' and port == bootstrap_port and address == bootstrap_address:
+          break
+
+      except socket.timeout:
+        print('[NODE] Bootstrap node is not available. Retrying...')
+    print('[NODE] Bootstrap node is available')
+    s.settimeout(None)
+
+    while True:
+      message, (address, port) = s.recvfrom(1024)
+      if message == b'ready' and port == bootstrap_port and address == bootstrap_address:
+        break
 
     # Send the wallet key to the bootstrap node
     message = json.dumps({
       'message_type': 'key',
       'key': client.wallet.get_address()
     })
+    print('[NODE] Sending key to bootstrap node')
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
     while True:
@@ -79,7 +102,7 @@ def start_node(bootstrap_port, nodes_count):
     # Listen for messages
     try:
       while True:
-        message, (address, port) = s.recvfrom(4096)
+        message, (address, port) = s.recvfrom(4096*client.blockchain.block_capacity)
 
         # Try parsing the message
         try:

@@ -17,7 +17,7 @@ class Node:
     self.id = None
     self.wallet = Wallet()
     self.balance = 0.0
-    self.nonce = 0  #! WHAT TO DO WITH THIS?
+    self.nonce = 0
     self.blockchain = None
     self.stake = 0
     self.socket = None
@@ -56,7 +56,7 @@ class Node:
 
     transaction = self.create_transaction(receiver['key'], type_of_transaction, value)
 
-    print(f'[NODE-{self.id}] Executing transaction: {self.id} -> {receiver_id}, {type_of_transaction}: {value}')
+    print(f'[NODE-{self.id}] Executing transaction {transaction.uuid}: {self.id} -> {receiver_id}, {type_of_transaction}: {value}')
 
     self.broadcast_transaction(transaction)
 
@@ -123,7 +123,7 @@ class Node:
       if sender['id'] == self.id:
         self.stake += transaction['value']
 
-    print(f'[NODE-{self.id}] Transaction registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}')
+    print(f'[NODE-{self.id}] Transaction {transaction["uuid"]} registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}')
 
     self.current_block.append(Transaction(**transaction))
     if len(self.current_block) == self.blockchain.block_capacity:
@@ -141,7 +141,7 @@ class Node:
   def receive_transaction(self, transaction):
     if not self.validate_transaction(transaction):
       # print(f'[NODE-{self.id}] Invalid transaction received: {transaction}')
-      print(f'[NODE-{self.id}] Invalid transaction received')
+      print(f'[NODE-{self.id}] Invalid transaction {transaction["uuid"]} received')
       return False
 
     self.register_transaction(transaction)
@@ -228,7 +228,7 @@ class Node:
     return True
 
   def set_stake(self, amount):
-    if amount <= 0.0 and amount > self.balance:
+    if amount <= 0.0 and amount > self.balance:  #! NOT NEEDED?
       print(f'[NODE-{self.id}] Insufficient balance or invalid amount to stake')
       return False
 
@@ -278,7 +278,7 @@ class Node:
       return False
 
     if not self.validate_block(block):
-      print(f'[NODE-{self.id}] Invalid block received')
+      print(f'[NODE-{self.id}] Invalid block {block.index} received')
       return False
 
     self.register_block(block)

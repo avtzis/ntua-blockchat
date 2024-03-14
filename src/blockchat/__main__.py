@@ -1,43 +1,39 @@
 import argparse
 import multiprocessing
-import blockchain
 
 from bootstrap_p import start_bootstrap
 from client_p import start_node
 
 def main():
-
   parser = argparse.ArgumentParser()
-  # defining arguments
-  parser.add_argument("--nodes","-n" ,type=int,required=True, help="Number of nodes")
-  parser.add_argument("--capacity","-c" ,type=int,required=True, help="Capacity")
-  # parse arguments
+  parser.add_argument("--nodes", "-n", type=int, required=True, help="Number of nodes")
+  parser.add_argument("--capacity", "-c", type=int, required=True, help="Block capacity")
+  # parser.add_argument("--verbose", "-v", action="store_true", help="Verbose mode")
+  parser.add_argument("--address", "-a", type=str, default='127.0.0.1', help="Bootstrap address")
+  parser.add_argument("--port", "-p", type=int, default=5555, help="Bootstrap port")
   args = parser.parse_args()
 
   nodes = args.nodes
   capacity = args.capacity
-
-  # Create the blockchain
-  bc = blockchain.Blockchain(capacity)
+  # verbose = args.verbose
+  address = args.address
+  port = args.port
 
   # Start the bootstrap process
-  parent_conn, child_conn = multiprocessing.Pipe()
   bootstrap_process = multiprocessing.Process(
     target=start_bootstrap,
-    args=(child_conn, nodes, bc,)
+    args=(nodes, capacity, address, port,)
   )
   print('[INIT] Starting bootstrap process')
   bootstrap_process.start()
-
-  # Receive the bootstrap port from the bootstrap process to start the nodes
-  bootstrap_port = int(parent_conn.recv())
 
   # Start the client processes
   for i in range(nodes):
     node_process = multiprocessing.Process(
       target=start_node,
-      args=(bootstrap_port, nodes,)
+      args=(address, port, nodes,)
     )
+    print('[INIT] Starting node process')
     node_process.start()
 
   # Wait for the bootstrap process to terminate

@@ -2,31 +2,47 @@ import socket
 import json
 
 from node import Bootstrap
-# import blockchain
+from blockchain import Blockchain
 
-def start_bootstrap(pipe_conn, nodes_count, blockchain):
+def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_port):
+  # Create the blockchain
+  blockchain = Blockchain(block_capacity)
+  print('[BOOTSTRAP] Blockchain created')
+
   # Create the bootstrap node
   bootstrap = Bootstrap(blockchain)
 
   # Create the genesis block
   bootstrap.create_genesis_block(nodes_count)
+  print('[BOOTSTRAP] Genesis block created')
   # print('[BOOTSTRAP] Blockchain: ', bootstrap.blockchain)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-    # Bind to a random port
-    s.bind(('localhost', 0))
-    port = s.getsockname()[1]
+    # Bind to the specified address and port
+    s.bind((bootstrap_address, bootstrap_port))
+    address, port = s.getsockname()
     bootstrap.socket = s
+    print(f'[BOOTSTRAP] Bootstrap node listening on {address}:{port}')
+
+    # Wait for the nodes to connect
+    addresses = []
+    for i in range(nodes_count):
+      while True:
+        message, (address, port) = s.recvfrom(1024)
+        if message == b'ping' and (address, port) not in addresses:
+          s.sendto(b'pong', (address, port))
+          addresses.append((address, port))
+          print(f'[BOOTSTRAP] Connected: {addresses}')
+          break
+
+    for address in addresses:
+      s.sendto(b'ready', address)
 
     # Add bootstrap to the list of nodes
-    bootstrap.add_node(0, 'localhost', port, bootstrap.wallet.get_address(), bootstrap.nonce, bootstrap.balance)
+    bootstrap.add_node(0, bootstrap_address, bootstrap_port, bootstrap.wallet.get_address(), bootstrap.nonce, bootstrap.balance)
 
-    # Send the port to the main process and close the pipe
-    pipe_conn.send(port)
-    pipe_conn.close()
-
-    # Wait for nodes to connect
+    # Wait for the nodes to send their public keys
     node_id = 0
     while len(blockchain.nodes) - 1 < nodes_count:
       node_id += 1
@@ -80,12 +96,14 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
 
     # Distribute the coins to all nodes
     for node in blockchain.nodes:
+      if node['id'] == 0:
+        continue
       bootstrap.execute_transaction(node['id'], 'coins', 1000)
 
     # Listen for messages
     try:
       while True:
-        message, (address, port) = s.recvfrom(4096)
+        message, (address, port) = s.recvfrom(4096*block_capacity)
 
         # Try parsing the message
         try:
