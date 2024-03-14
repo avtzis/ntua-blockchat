@@ -33,7 +33,13 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
 
       # Receive the key from the node
       message, (address, port) = s.recvfrom(1024)
-      message = json.loads(message.decode())
+
+      # Try parsing the message
+      try:
+        message = json.loads(message.decode())
+      except json.JSONDecodeError:
+        print(f'[BOOTSTRAP] Invalid message received from {port}')
+        continue
 
       # Check if the message is a public-key message
       if message['message_type'] == 'key':
@@ -61,7 +67,13 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
     remaining_nodes = [node['id'] for node in blockchain.nodes]
     while remaining_nodes:
       message, (address, port) = s.recvfrom(1024)
-      message = json.loads(message.decode())
+
+      # Try parsing the message
+      try:
+        message = json.loads(message.decode())
+      except json.JSONDecodeError:
+        print(f'[BOOTSTRAP] Invalid message received from {port}')
+        continue
 
       if message['message_type'] == 'ack':
         remaining_nodes.remove(message['id'])
