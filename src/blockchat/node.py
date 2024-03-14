@@ -30,16 +30,33 @@ class Node:
   def execute_transaction(self, receiver_id, type_of_transaction, value):
     receiver = next((node for node in self.blockchain.nodes if node['id'] == receiver_id), None)
     if not receiver:
+      if receiver_id != 0 or type_of_transaction != 'stake':
+        print(f'[NODE-{self.id}] Invalid receiver')
+        return False
+
+    available_balance = self.balance - self.stake
+    if type_of_transaction == 'stake':
+      if value <= 0 and value > available_balance:
+        print(f'[NODE-{self.id}] Insufficient balance or invalid amount to stake')
+        return False
+    elif type_of_transaction == 'coins':
+      total_cost = (1 + self.blockchain.fee_rate) * value
+      if total_cost <= 0 and available_balance < total_cost:
+        print(f'[NODE-{self.id}] Insufficient balance or invalid amount to transfer')
+        return False
+    elif type_of_transaction == 'message':
+      if not isinstance(value, str) and available_balance < len(value):
+        print(f'[NODE-{self.id}] Insufficient balance or invalid message to send')
+        return False
+    else:
+      print(f'[NODE-{self.id}] Invalid transaction type')
       return False
 
     transaction = self.create_transaction(receiver['key'], type_of_transaction, value)
-    # if not self.validate_transaction(transaction):
-    #   return False
 
     print(f'[NODE-{self.id}] Executing transaction: {self.id} -> {receiver_id}, {type_of_transaction}: {value}')
 
     self.broadcast_transaction(transaction)
-    # self.register_transaction(transaction)
 
     return True
 
@@ -85,14 +102,20 @@ class Node:
       if receiver['id'] == self.id:
         self.balance += transaction['value']
 
-    if transaction['type_of_transaction'] == 'message':
+    elif transaction['type_of_transaction'] == 'message':
       sender['balance'] -= len(transaction['value'])
       self.current_fees += len(transaction['value'])
 
       if sender['id'] == self.id:
         self.balance -= len(transaction['value'])
 
-    print(f'[NODE-{self.id}] Transaction registered successfully: {sender["id"]} -> {receiver["id"]}, {transaction["type_of_transaction"]}: {transaction["value"]}')
+    elif transaction['type_of_transaction'] == 'stake':
+      sender['stake'] += transaction['value']
+
+      if sender['id'] == self.id:
+        self.stake += transaction['value']
+
+    print(f'[NODE-{self.id}] Transaction registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}')
 
     self.current_block.append(transaction)
     if len(self.current_block) == self.blockchain.block_capacity:
@@ -137,12 +160,29 @@ class Node:
       return False
 
   def validate_transaction(self, transaction):
+    required_keys = ['sender_address', 'receiver_address', 'type_of_transaction', 'value', 'nonce', 'signature']
+    if not all(key in transaction for key in required_keys):
+      print(f'[NODE-{self.id}] Invalid transaction format')
+      return False
+
     sender_key, receiver_key = transaction['sender_address'], transaction['receiver_address']
     sender = next((node for node in self.blockchain.nodes if node['key'] == sender_key), None)
-    receiver = next((node for node in self.blockchain.nodes if node['key'] == receiver_key), None)
-    if not sender or not receiver:
-      print(f'[NODE-{self.id}] Invalid sender or receiver')
+    if not sender:
+      print(f'[NODE-{self.id}] Invalid sender')
       return False
+
+    receiver = 'stake_receiver' if receiver_key == '0' and transaction['type_of_transaction'] == 'stake' else next((node for node in self.blockchain.nodes if node['key'] == receiver_key), None)
+    if not receiver:
+      print(f'[NODE-{self.id}] Invalid receiver')
+      return False
+
+    if transaction['type_of_transaction'] not in ['coins', 'message', 'stake']:
+      print(f'[NODE-{self.id}] Invalid transaction type')
+      return False
+
+    # if transaction['nonce'] <= sender['nonce']:
+    #   print(f'[NODE-{self.id}] Invalid nonce')
+    #   return False
 
     if not self.verify_signature(transaction):
       print(f'[NODE-{self.id}] Invalid signature')
@@ -151,15 +191,36 @@ class Node:
     available_balance = sender['balance'] - sender['stake']
     if transaction['type_of_transaction'] == 'coins':
       total_cost = (1 + self.blockchain.fee_rate) * transaction['value']
+      if total_cost <= 0:
+        print(f'[NODE-{self.id}] Invalid amount to transfer')
+        return False
       if available_balance < total_cost:
         print(f'[NODE-{self.id}] Insufficient balance')
         print(f'[NODE-{self.id}] Available balance: {available_balance}, Total cost: {total_cost}')
         return False
-
-    if transaction['type_of_transaction'] == 'message':
+    elif transaction['type_of_transaction'] == 'message':
+      if not isinstance(transaction['value'], str):
+        print(f'[NODE-{self.id}] Invalid message')
+        return False
       if available_balance < len(transaction['value']):
         print(f'[NODE-{self.id}] Insufficient balance')
         return False
+    elif transaction['type_of_transaction'] == 'stake':
+      if transaction['value'] <= 0:
+        print(f'[NODE-{self.id}] Invalid amount to stake')
+        return False
+      if transaction['value'] > available_balance:
+        print(f'[NODE-{self.id}] Insufficient balance')
+        return False
+
+    return True
+
+  def stake(self, amount):
+    if amount <= 0 and amount > self.balance:
+      print(f'[NODE-{self.id}] Insufficient balance or invalid amount to stake')
+      return False
+
+    self.execute_transaction(0, 'stake', amount)
 
     return True
 
