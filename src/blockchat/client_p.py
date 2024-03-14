@@ -22,33 +22,53 @@ def start_node(bootstrap_port, nodes_count):
     })
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
-    # Wait for the response containing all essential information
-    message, (address, port) = s.recvfrom((nodes_count + 1)*1024)
-    message = json.loads(message.decode())
+    while True:
+      # Wait for the response containing all essential information
+      message, (address, port) = s.recvfrom((nodes_count + 1)*1024)
 
-    if message['message_type'] == 'id':
-      # Set the id
-      client.id = message['id']
+      # Try parsing the message
+      try:
+        message = json.loads(message.decode())
+      except json.JSONDecodeError:
+        print(f'[NODE-{client.id}] Invalid message received')
+        continue
 
-      # Set the blockchain
-      client.blockchain = Blockchain(**message['blockchain'])
-      print(f'[NODE-{client.id}] Received id and blockchain from {port}')
+      # Check if the message is an id message
+      if message['message_type'] == 'id':
+        # Set the id
+        client.id = message['id']
 
-      # if client.id == 1:
-      #   print(f'[NODE-{client.id}] Blockchain: {client.blockchain}')
-      #   print(f'[NODE-{client.id}] Nodes: {client.blockchain.nodes}')
+        # Set the blockchain
+        client.blockchain = Blockchain(**message['blockchain'])
+        print(f'[NODE-{client.id}] Received id and blockchain from {port}')
 
-      # Send an ack to the bootstrap node
-      message = json.dumps({
-        'message_type': 'ack',
-        'id': client.id
-      })
-      s.sendto(message.encode(), ('localhost', bootstrap_port))
+        # if client.id == 1:
+        #   print(f'[NODE-{client.id}] Blockchain: {client.blockchain}')
+        #   print(f'[NODE-{client.id}] Nodes: {client.blockchain.nodes}')
+
+        # Send an ack to the bootstrap node
+        message = json.dumps({
+          'message_type': 'ack',
+          'id': client.id
+        })
+        s.sendto(message.encode(), ('localhost', bootstrap_port))
+
+        break
+
+      else:
+        print(f'[NODE-{client.id}] Invalid message received')
 
     # Receive initial coin transactions from bootstrap
     for i in range(nodes_count):
-      message, (address, port) = s.recvfrom(4096)
-      message = json.loads(message.decode())
+      while True:
+        message, (address, port) = s.recvfrom(4096)
 
-      if message['message_type'] == 'transaction':
-        client.receive_transaction(message['transaction'])
+        try:
+          message = json.loads(message.decode())
+        except json.JSONDecodeError:
+          print(f'[NODE-{client.id}] Invalid message received')
+          continue
+
+        if message['message_type'] == 'transaction':
+          client.receive_transaction(message['transaction'])
+          break
