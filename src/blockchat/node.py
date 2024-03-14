@@ -71,6 +71,8 @@ class Node:
 
     transaction['signature'] = self.sign_transaction(transaction)
 
+    self.nonce += 1
+
     return Transaction(**transaction)
 
   def sign_transaction(self, transaction):
@@ -90,6 +92,8 @@ class Node:
   def register_transaction(self, transaction):
     sender = next((node for node in self.blockchain.nodes if node['key'] == transaction['sender_address']), None)
     receiver = next((node for node in self.blockchain.nodes if node['key'] == transaction['receiver_address']), None)
+
+    sender['nonce'] += 1
 
     if transaction['type_of_transaction'] == 'coins':
       total_cost = (1 + self.blockchain.fee_rate) * transaction['value']
@@ -180,9 +184,13 @@ class Node:
       print(f'[NODE-{self.id}] Invalid transaction type')
       return False
 
-    # if transaction['nonce'] <= sender['nonce']:
-    #   print(f'[NODE-{self.id}] Invalid nonce')
-    #   return False
+    if transaction['nonce'] != sender['nonce']:
+      print(f'[NODE-{self.id}] Invalid nonce')
+
+      if sender['id'] == self.id:
+        self.nonce = sender['nonce']
+
+      return False
 
     if not self.verify_signature(transaction):
       print(f'[NODE-{self.id}] Invalid signature')
@@ -255,7 +263,7 @@ class Bootstrap(Node):
     # Register the transaction
     self.balance += transaction.value
 
-  def add_node(self, id, address, port, key, balance=0, stake=0):
+  def add_node(self, id, address, port, key, nonce=0, balance=0, stake=0):
     self.blockchain.nodes.append({
       'id': id,
       'address': address,

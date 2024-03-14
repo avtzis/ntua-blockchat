@@ -20,7 +20,7 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
     bootstrap.socket = s
 
     # Add bootstrap to the list of nodes
-    bootstrap.add_node(0, 'localhost', port, bootstrap.wallet.get_address(), bootstrap.balance)
+    bootstrap.add_node(0, 'localhost', port, bootstrap.wallet.get_address(), bootstrap.nonce, bootstrap.balance)
 
     # Send the port to the main process and close the pipe
     pipe_conn.send(port)
