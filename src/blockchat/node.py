@@ -2,6 +2,8 @@ import json
 import socket
 import base64
 import random
+import uuid
+from datetime import datetime
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
@@ -62,8 +64,10 @@ class Node:
 
   def create_transaction(self, receiver_address, type_of_transaction, value):
     transaction = {
+      'uuid': str(uuid.uuid4()),
       'sender_address': self.wallet.get_address(),
       'receiver_address': receiver_address,
+      'timestamp': datetime.now().isoformat(),
       'type_of_transaction': type_of_transaction,
       'value': value,
       'nonce': self.nonce,
@@ -164,7 +168,7 @@ class Node:
       return False
 
   def validate_transaction(self, transaction):
-    required_keys = ['sender_address', 'receiver_address', 'type_of_transaction', 'value', 'nonce', 'signature']
+    required_keys = ['uuid', 'sender_address', 'receiver_address', 'timestamp', 'type_of_transaction', 'value', 'nonce', 'signature']
     if not all(key in transaction for key in required_keys):
       print(f'[NODE-{self.id}] Invalid transaction format')
       return False
@@ -236,10 +240,11 @@ class Node:
     validator_id = self.get_validator()
 
     if validator_id == self.id:
+      transactions = sorted(self.current_block, key=lambda transaction: transaction.timestamp)
       new_block = Block(
         self.blockchain.block_index,
         self.id,
-        self.current_block,
+        transactions,
         self.blockchain.get_last_block().hash
       )
 
@@ -319,8 +324,10 @@ class Bootstrap(Node):
   def create_genesis_block(self, nodes_count):
     # Create the initial transaction
     transaction = Transaction(
+      str(uuid.uuid4()),
       '0',
       self.wallet.get_address(),
+      datetime.now().isoformat(),
       'coins',
       1000 * (nodes_count + 1),
       self.nonce,
