@@ -5,7 +5,7 @@ from datetime import datetime
 class Block:
   def __init__(self, index, validator, transactions, previous_hash, timestamp=None, hash=None):
     self.index = index
-    self.timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f') if timestamp is None else timestamp
+    self.timestamp = datetime.now().isoformat() if timestamp is None else timestamp
     self.validator = validator
     self.transactions = transactions
     self.previous_hash = previous_hash
