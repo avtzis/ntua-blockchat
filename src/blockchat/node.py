@@ -1,6 +1,7 @@
 import json
 import socket
 import base64
+import random
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
@@ -28,11 +29,10 @@ class Node:
       s.sendto(message.encode(), (address, port))
 
   def execute_transaction(self, receiver_id, type_of_transaction, value):
-    receiver = next((node for node in self.blockchain.nodes if node['id'] == receiver_id), None)
+    receiver = next((node for node in self.blockchain.nodes if node['id'] == receiver_id), None) if receiver_id != -1 else {'key': '0'}
     if not receiver:
-      if receiver_id != 0 or type_of_transaction != 'stake':
-        print(f'[NODE-{self.id}] Invalid receiver')
-        return False
+      print(f'[NODE-{self.id}] Invalid receiver')
+      return False
 
     available_balance = self.balance - self.stake
     if type_of_transaction == 'stake':
@@ -121,7 +121,7 @@ class Node:
 
     print(f'[NODE-{self.id}] Transaction registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}')
 
-    self.current_block.append(transaction)
+    self.current_block.append(Transaction(**transaction))
     if len(self.current_block) == self.blockchain.block_capacity:
       self.mine_block()
 
@@ -144,8 +144,8 @@ class Node:
     return True
 
   def verify_signature(self, transaction):
-    signature = base64.b64decode(transaction.pop('signature'))
-    transaction_bytes = json.dumps(transaction).encode()
+    signature = base64.b64decode(transaction['signature'])
+    transaction_bytes = json.dumps({key: value for key, value in transaction.items() if key != 'signature'}).encode()
     public_key = serialization.load_pem_public_key(transaction['sender_address'].encode())
 
     try:
@@ -223,15 +223,91 @@ class Node:
 
     return True
 
-  def stake(self, amount):
-    if amount <= 0 and amount > self.balance:
+  def set_stake(self, amount):
+    if amount <= 0.0 and amount > self.balance:
       print(f'[NODE-{self.id}] Insufficient balance or invalid amount to stake')
       return False
 
-    self.execute_transaction(0, 'stake', amount)
+    self.execute_transaction(-1, 'stake', amount)
 
     return True
 
+  def mine_block(self):
+    validator_id = self.get_validator()
+
+    if validator_id == self.id:
+      new_block = Block(
+        self.blockchain.block_index,
+        self.id,
+        self.current_block,
+        self.blockchain.get_last_block().hash
+      )
+
+      self.broadcast_block(new_block)
+
+  def get_validator(self):
+    entries = []
+
+    random.seed(self.blockchain.get_last_block().hash)
+
+    for node in self.blockchain.nodes:
+      entries.extend([node['id']] * int(node['stake']))
+
+    if not entries:
+      return 0
+
+    return random.choice(entries)
+
+  def broadcast_block(self, block):
+    message = json.dumps({
+      'message_type': 'block',
+      'block': dict(block)
+    })
+
+    for node in self.blockchain.nodes:
+      self.send(message, node['address'], node['port'])
+
+  def receive_block(self, block):
+    if len(self.current_block) < self.blockchain.block_capacity:
+      print(f'[NODE-{self.id}] Received block while current block is not full')
+      return False
+
+    if not self.validate_block(block):
+      print(f'[NODE-{self.id}] Invalid block received')
+      return False
+
+    self.register_block(block)
+
+    return True
+
+  def validate_block(self, block):
+    required_keys = ['index', 'validator', 'transactions', 'previous_hash', 'timestamp', 'hash']
+    if not all(key in block for key in required_keys):
+      print(f'[NODE-{self.id}] Invalid block format')
+      return False
+
+    if block['validator'] != self.get_validator():
+      print(f'[NODE-{self.id}] Invalid block validator')
+      return False
+
+    if block['previous_hash'] != self.blockchain.get_last_block().hash:
+      print(f'[NODE-{self.id}] Invalid block previous hash')
+      return False
+
+    return True
+
+  def register_block(self, block):
+    self.blockchain.add_block(Block(**block))
+    self.current_block = []
+
+    validator = next((node for node in self.blockchain.nodes if node['id'] == block['validator']), None)
+    validator['balance'] += self.current_fees
+    self.current_fees = 0
+
+    if validator['id'] == self.id:
+      self.balance = validator['balance']
+
+    print(f'[NODE-{self.id}] Block registered successfully')
 
 class Bootstrap(Node):
   def __init__(self, blockchain):
@@ -270,5 +346,6 @@ class Bootstrap(Node):
       'port': port,
       'key': key,
       'balance': balance,
-      'stake': stake
+      'stake': stake,
+      'nonce': nonce
     })

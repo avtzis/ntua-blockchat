@@ -63,8 +63,7 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
       s.sendto(message.encode(), (node['address'], node['port']))
 
     # Wait for the nodes to finish
-    blockchain.nodes.pop(0)
-    remaining_nodes = [node['id'] for node in blockchain.nodes]
+    remaining_nodes = [node['id'] for node in blockchain.nodes if node['id'] != 0]
     while remaining_nodes:
       message, (address, port) = s.recvfrom(1024)
 
@@ -82,3 +81,25 @@ def start_bootstrap(pipe_conn, nodes_count, blockchain):
     # Distribute the coins to all nodes
     for node in blockchain.nodes:
       bootstrap.execute_transaction(node['id'], 'coins', 1000)
+
+    # Listen for messages
+    while True:
+      message, (address, port) = s.recvfrom(4096)
+
+      # Try parsing the message
+      try:
+        message = json.loads(message.decode())
+      except json.JSONDecodeError:
+        print(f'[BOOTSTRAP] Invalid message received from {port}')
+        continue
+
+      if message['message_type'] == 'transaction':
+        print(f'[BOOTSTRAP] Received transaction from {port}')
+        bootstrap.receive_transaction(message['transaction'])
+
+      elif message['message_type'] == 'block':
+        print(f'[BOOTSTRAP] Received block from {port}')
+        bootstrap.receive_block(message['block'])
+
+      else:
+        print(f'[BOOTSTRAP] Invalid message received from {port}')

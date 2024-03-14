@@ -72,3 +72,26 @@ def start_node(bootstrap_port, nodes_count):
         if message['message_type'] == 'transaction':
           client.receive_transaction(message['transaction'])
           break
+
+    # Stake the coins
+    client.set_stake(10)
+
+    # Listen for messages
+    while True:
+      message, (address, port) = s.recvfrom(4096)
+
+      # Try parsing the message
+      try:
+        message = json.loads(message.decode())
+      except json.JSONDecodeError:
+        print(f'[NODE-{client.id}] Invalid message received')
+        continue
+
+      if message['message_type'] == 'transaction':
+        client.receive_transaction(message['transaction'])
+
+      elif message['message_type'] == 'block':
+        client.receive_block(message['block'])
+
+      else:
+        print(f'[NODE-{client.id}] Invalid message received')
