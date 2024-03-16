@@ -4,6 +4,7 @@ import base64
 import random
 import uuid
 from datetime import datetime
+from queue import Queue
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
@@ -24,6 +25,9 @@ class Node:
 
     self.current_block = []
     self.current_fees = 0
+
+    self.past_fees = Queue()
+    self.past_pools = Queue()
 
   @staticmethod
   def send(message, address, port):
@@ -237,7 +241,16 @@ class Node:
     return True
 
   def mine_block(self):
-    validator_id = self.get_validator()
+    entries = []
+    for node in self.blockchain.nodes:
+      entries.extend([node['id']] * int(node['stake']))
+
+    seed = self.blockchain.get_last_block().hash
+
+    validator_id = self.get_validator_from_pool(entries, seed)
+
+    self.past_fees.put(self.current_fees)
+    self.past_pools.put(entries)
 
     if validator_id == self.id:
       transactions = sorted(self.current_block, key=lambda transaction: transaction.timestamp)
@@ -250,18 +263,16 @@ class Node:
 
       self.broadcast_block(new_block)
 
-  def get_validator(self):
-    entries = []
+    self.current_fees = 0
 
-    random.seed(self.blockchain.get_last_block().hash)
+  @staticmethod
+  def get_validator_from_pool(pool, seed):
+    random.seed(seed)
 
-    for node in self.blockchain.nodes:
-      entries.extend([node['id']] * int(node['stake']))
-
-    if not entries:
+    if not pool:
       return 0
 
-    return random.choice(entries)
+    return random.choice(pool)
 
   def broadcast_block(self, block):
     message = json.dumps({
@@ -291,23 +302,23 @@ class Node:
       print(f'[NODE-{self.id}] Invalid block format')
       return False
 
-    if block['validator'] != self.get_validator():
-      print(f'[NODE-{self.id}] Invalid block validator')
-      return False
-
     if block['previous_hash'] != self.blockchain.get_last_block().hash:
       print(f'[NODE-{self.id}] Invalid block previous hash')
+      return False
+
+    pool = self.past_pools.get()
+    if block['validator'] != self.get_validator_from_pool(pool, block['previous_hash']):
+      print(f'[NODE-{self.id}] Invalid block validator')
       return False
 
     return True
 
   def register_block(self, block):
     self.blockchain.add_block(Block(**block))
-    self.current_block = []
+    self.current_block = self.current_block[self.blockchain.block_capacity:]
 
     validator = next((node for node in self.blockchain.nodes if node['id'] == block['validator']), None)
-    validator['balance'] += self.current_fees
-    self.current_fees = 0
+    validator['balance'] += self.past_fees.get()
 
     if validator['id'] == self.id:
       self.balance = validator['balance']
