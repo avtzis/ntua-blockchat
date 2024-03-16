@@ -34,6 +34,11 @@ class Node:
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
       s.sendto(message.encode(), (address, port))
 
+  def set_stake(self, amount):
+    self.execute_transaction(-1, 'stake', amount)
+
+    return True
+
   def execute_transaction(self, receiver_id, type_of_transaction, value):
     receiver = next((node for node in self.blockchain.nodes if node['id'] == receiver_id), None) if receiver_id != -1 else {'key': '0'}
     if not receiver:
@@ -42,12 +47,12 @@ class Node:
 
     available_balance = self.balance - self.stake
     if type_of_transaction == 'stake':
-      if value <= 0 and value > available_balance:
+      if value <= 0.0 and value > available_balance:
         print(f'[NODE-{self.id}] Insufficient balance or invalid amount to stake')
         return False
     elif type_of_transaction == 'coins':
       total_cost = (1 + self.blockchain.fee_rate) * value
-      if total_cost <= 0 and available_balance < total_cost:
+      if total_cost <= 0.0 and available_balance < total_cost:
         print(f'[NODE-{self.id}] Insufficient balance or invalid amount to transfer')
         return False
     elif type_of_transaction == 'message':
@@ -97,42 +102,6 @@ class Node:
 
     return base64.b64encode(signature).decode()
 
-  def register_transaction(self, transaction):
-    sender = next((node for node in self.blockchain.nodes if node['key'] == transaction['sender_address']), None)
-    receiver = next((node for node in self.blockchain.nodes if node['key'] == transaction['receiver_address']), None)
-
-    sender['nonce'] += 1
-
-    if transaction['type_of_transaction'] == 'coins':
-      total_cost = (1 + self.blockchain.fee_rate) * transaction['value']
-      sender['balance'] -= total_cost
-      receiver['balance'] += transaction['value']
-      self.current_fees += total_cost - transaction['value']
-
-      if sender['id'] == self.id:
-        self.balance -= total_cost
-      if receiver['id'] == self.id:
-        self.balance += transaction['value']
-
-    elif transaction['type_of_transaction'] == 'message':
-      sender['balance'] -= len(transaction['value'])
-      self.current_fees += len(transaction['value'])
-
-      if sender['id'] == self.id:
-        self.balance -= len(transaction['value'])
-
-    elif transaction['type_of_transaction'] == 'stake':
-      sender['stake'] += transaction['value']
-
-      if sender['id'] == self.id:
-        self.stake += transaction['value']
-
-    print(f'[NODE-{self.id}] Transaction {transaction["uuid"]} registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}')
-
-    self.current_block.append(Transaction(**transaction))
-    if len(self.current_block) == self.blockchain.block_capacity:
-      self.mine_block()
-
   def broadcast_transaction(self, transaction):
     message = json.dumps({
       'message_type': 'transaction',
@@ -150,26 +119,6 @@ class Node:
 
     self.register_transaction(transaction)
     return True
-
-  def verify_signature(self, transaction):
-    signature = base64.b64decode(transaction['signature'])
-    transaction_bytes = json.dumps({key: value for key, value in transaction.items() if key != 'signature'}).encode()
-    public_key = serialization.load_pem_public_key(transaction['sender_address'].encode())
-
-    try:
-      public_key.verify(
-        signature,
-        transaction_bytes,
-        padding.PSS(
-          mgf=padding.MGF1(hashes.SHA256()),
-          salt_length=padding.PSS.MAX_LENGTH
-        ),
-        hashes.SHA256()
-      )
-      return True
-    except Exception as e:
-      print(f'[NODE-{self.id}] Invalid signature: {e}')
-      return False
 
   def validate_transaction(self, transaction):
     required_keys = ['uuid', 'sender_address', 'receiver_address', 'timestamp', 'type_of_transaction', 'value', 'nonce', 'signature']
@@ -231,14 +180,61 @@ class Node:
 
     return True
 
-  def set_stake(self, amount):
-    if amount <= 0.0 and amount > self.balance:  #! NOT NEEDED?
-      print(f'[NODE-{self.id}] Insufficient balance or invalid amount to stake')
+  def verify_signature(self, transaction):
+    signature = base64.b64decode(transaction['signature'])
+    transaction_bytes = json.dumps({key: value for key, value in transaction.items() if key != 'signature'}).encode()
+    public_key = serialization.load_pem_public_key(transaction['sender_address'].encode())
+
+    try:
+      public_key.verify(
+        signature,
+        transaction_bytes,
+        padding.PSS(
+          mgf=padding.MGF1(hashes.SHA256()),
+          salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+      )
+      return True
+    except Exception as e:
+      print(f'[NODE-{self.id}] Invalid signature: {e}')
       return False
 
-    self.execute_transaction(-1, 'stake', amount)
+  def register_transaction(self, transaction):
+    sender = next((node for node in self.blockchain.nodes if node['key'] == transaction['sender_address']), None)
+    receiver = next((node for node in self.blockchain.nodes if node['key'] == transaction['receiver_address']), None)
 
-    return True
+    sender['nonce'] += 1
+
+    if transaction['type_of_transaction'] == 'coins':
+      total_cost = (1 + self.blockchain.fee_rate) * transaction['value']
+      sender['balance'] -= total_cost
+      receiver['balance'] += transaction['value']
+      self.current_fees += total_cost - transaction['value']
+
+      if sender['id'] == self.id:
+        self.balance -= total_cost
+      if receiver['id'] == self.id:
+        self.balance += transaction['value']
+
+    elif transaction['type_of_transaction'] == 'message':
+      sender['balance'] -= len(transaction['value'])
+      self.current_fees += len(transaction['value'])
+
+      if sender['id'] == self.id:
+        self.balance -= len(transaction['value'])
+
+    elif transaction['type_of_transaction'] == 'stake':
+      sender['stake'] += transaction['value']
+
+      if sender['id'] == self.id:
+        self.stake += transaction['value']
+
+    print(f'[NODE-{self.id}] Transaction {transaction["uuid"]} registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}')
+
+    self.current_block.append(Transaction(**transaction))
+    if len(self.current_block) == self.blockchain.block_capacity:
+      self.mine_block()
 
   def mine_block(self):
     entries = []
