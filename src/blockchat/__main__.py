@@ -19,27 +19,37 @@ def main():
   address = args.address
   port = args.port
 
-  # Start the bootstrap process
-  bootstrap_process = multiprocessing.Process(
-    target=start_bootstrap,
-    args=(nodes, capacity, address, port,)
-  )
-  print('[INIT] Starting bootstrap process')
-  bootstrap_process.start()
-
-  # Start the client processes
-  for i in range(nodes):
-    node_process = multiprocessing.Process(
-      target=start_node,
-      args=(address, port, nodes,)
+  try:
+    # Start the bootstrap process
+    bootstrap_process = multiprocessing.Process(
+      target=start_bootstrap,
+      args=(nodes, capacity, address, port,)
     )
-    print('[INIT] Starting node process')
-    node_process.start()
+    processes = [bootstrap_process]
+    print('[INIT] Starting bootstrap process')
+    bootstrap_process.start()
 
-  # Wait for the bootstrap process to terminate
-  # bootstrap_process.join()
-  # print('[INIT] Bootstrap process terminated')
-  print('[INIT] This process will now exit.')
+    # Start the client processes
+    for i in range(nodes):
+      node_process = multiprocessing.Process(
+        target=start_node,
+        args=(address, port, nodes,)
+      )
+      processes.append(node_process)
+      print('[INIT] Starting node process')
+      node_process.start()
+
+    # Wait for all processes to finish
+    for process in processes:
+      process.join()
+
+  except KeyboardInterrupt:
+    # Wait for all processes to finish
+    for process in processes:
+      process.join()
+
+    print('[INIT] All processes terminated')
+    print('[INIT] Exiting')
 
 
 if __name__ == '__main__':
