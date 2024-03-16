@@ -8,22 +8,24 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("--nodes", "-n", type=int, required=True, help="Number of nodes")
   parser.add_argument("--capacity", "-c", type=int, required=True, help="Block capacity")
-  # parser.add_argument("--verbose", "-v", action="store_true", help="Verbose mode")
   parser.add_argument("--address", "-a", type=str, default='127.0.0.1', help="Bootstrap address")
   parser.add_argument("--port", "-p", type=int, default=5555, help="Bootstrap port")
+  parser.add_argument("--verbose", "-v", action="store_true", help="Increase output verbosity")
+  parser.add_argument("--debug", "-d", action="store_true", help="Enable debug mode")
   args = parser.parse_args()
 
   nodes = args.nodes
   capacity = args.capacity
-  # verbose = args.verbose
   address = args.address
   port = args.port
+  verbose = args.verbose
+  debug = args.debug
 
   try:
     # Start the bootstrap process
     bootstrap_process = multiprocessing.Process(
       target=start_bootstrap,
-      args=(nodes, capacity, address, port,)
+      args=(nodes, capacity, address, port, verbose, debug)
     )
     processes = [bootstrap_process]
     print('[INIT] Starting bootstrap process')
@@ -33,10 +35,10 @@ def main():
     for i in range(nodes):
       node_process = multiprocessing.Process(
         target=start_node,
-        args=(address, port, nodes,)
+        args=(address, port, nodes, verbose, debug)
       )
       processes.append(node_process)
-      print('[INIT] Starting node process')
+      print(f'[INIT] Starting node process {i}')
       node_process.start()
 
     # Wait for all processes to finish

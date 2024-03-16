@@ -4,9 +4,9 @@ import json
 from node import Node
 from blockchain import Blockchain
 
-def start_node(bootstrap_address, bootstrap_port, nodes_count):
+def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
   # Create the client node
-  client = Node()
+  client = Node(verbose, debug)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -14,13 +14,13 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count):
     s.bind(('localhost', 0))
     address, port = s.getsockname()
     client.socket = s
-    print(f'[NODE] Client node listening on {address}:{port}')
+    client.log(f'Client node listening on {address}:{port}')
 
     # Check if bootstrap is available
     s.settimeout(0.1)
     while True:
       try:
-        print('[NODE] Pinging bootstrap node...')
+        client.log('Pinging bootstrap node...')
         s.sendto(b'ping', (bootstrap_address, bootstrap_port))
         message, (address, port) = s.recvfrom(1024)
 
@@ -28,8 +28,8 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count):
           break
 
       except socket.timeout:
-        print('[NODE] Bootstrap node is not available. Retrying...')
-    print('[NODE] Bootstrap node is available')
+        client.log('Bootstrap node is not available. Retrying...')
+    client.log('Bootstrap node is available')
     s.settimeout(None)
 
     while True:
@@ -42,7 +42,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count):
       'message_type': 'key',
       'key': client.wallet.get_address()
     })
-    print('[NODE] Sending key to bootstrap node')
+    client.log('Sending key to bootstrap node')
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
     while True:
@@ -53,33 +53,29 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count):
       try:
         message = json.loads(message.decode())
       except json.JSONDecodeError:
-        print(f'[NODE-{client.id}] Invalid message received')
+        client.log(f'Invalid message received from {address}:{port}')
         continue
 
       # Check if the message is an id message
-      if message['message_type'] == 'id':
+      if message['message_type'] == 'id' and (address, port) == (bootstrap_address, bootstrap_port):
         # Set the id
         client.id = message['id']
 
         # Set the blockchain
         client.blockchain = Blockchain(**message['blockchain'])
-        print(f'[NODE-{client.id}] Received id and blockchain from {port}')
-
-        # if client.id == 1:
-        #   print(f'[NODE-{client.id}] Blockchain: {client.blockchain}')
-        #   print(f'[NODE-{client.id}] Nodes: {client.blockchain.nodes}')
+        client.log('Received id and blockchain from bootstrap node')
 
         # Send an ack to the bootstrap node
         message = json.dumps({
           'message_type': 'ack',
           'id': client.id
         })
-        s.sendto(message.encode(), ('localhost', bootstrap_port))
+        s.sendto(message.encode(), (bootstrap_address, bootstrap_port))
 
         break
 
       else:
-        print(f'[NODE-{client.id}] Invalid message received')
+        client.log(f'Invalid message received from {address}:{port}')
 
     # Receive initial coin transactions from bootstrap
     for i in range(nodes_count):
@@ -89,7 +85,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count):
         try:
           message = json.loads(message.decode())
         except json.JSONDecodeError:
-          print(f'[NODE-{client.id}] Invalid message received')
+          client.log(f'Invalid message received from {address}:{port}')
           continue
 
         if message['message_type'] == 'transaction':
@@ -108,18 +104,20 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count):
         try:
           message = json.loads(message.decode())
         except json.JSONDecodeError:
-          print(f'[NODE-{client.id}] Invalid message received')
+          client.log(f'Invalid message received from {address}:{port}')
           continue
 
         if message['message_type'] == 'transaction':
+          client.log(f'Received message from {address}:{port} (transaction)')
           client.receive_transaction(message['transaction'])
 
         elif message['message_type'] == 'block':
+          client.log(f'Received message from {address}:{port} (block)')
           client.receive_block(message['block'])
 
         else:
-          print(f'[NODE-{client.id}] Invalid message received')
+          client.log(f'Invalid message received from {address}:{port}')
     except KeyboardInterrupt:
-      print(f'[NODE-{client.id}] Client process terminated by user')
+      client.log('Process terminated by user')
       s.close()
       return

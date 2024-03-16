@@ -4,17 +4,16 @@ import json
 from node import Bootstrap
 from blockchain import Blockchain
 
-def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_port):
+def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_port, verbose, debug):
   # Create the blockchain
   blockchain = Blockchain(block_capacity)
   print('[BOOTSTRAP] Blockchain created')
 
   # Create the bootstrap node
-  bootstrap = Bootstrap(blockchain)
+  bootstrap = Bootstrap(verbose, debug, blockchain)
 
   # Create the genesis block
   bootstrap.create_genesis_block(nodes_count)
-  print('[BOOTSTRAP] Genesis block created')
   # print('[BOOTSTRAP] Blockchain: ', bootstrap.blockchain)
 
   # Start the UDP server
@@ -23,7 +22,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
     s.bind((bootstrap_address, bootstrap_port))
     address, port = s.getsockname()
     bootstrap.socket = s
-    print(f'[BOOTSTRAP] Bootstrap node listening on {address}:{port}')
+    bootstrap.log(f'Listening on {address}:{port}')
 
     # Wait for the nodes to connect
     addresses = []
@@ -33,7 +32,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
         if message == b'ping' and (address, port) not in addresses:
           s.sendto(b'pong', (address, port))
           addresses.append((address, port))
-          print(f'[BOOTSTRAP] Connected: {addresses}')
+          bootstrap.log(f'Connected: {addresses}')
           break
 
     for address in addresses:
@@ -54,13 +53,13 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
       try:
         message = json.loads(message.decode())
       except json.JSONDecodeError:
-        print(f'[BOOTSTRAP] Invalid message received from {port}')
+        bootstrap.log(f'Invalid message received from {address}:{port}')
         continue
 
       # Check if the message is a public-key message
       if message['message_type'] == 'key':
         key = message['key']
-        print(f'[BOOTSTRAP] Received key {key[100:111]} from {port}')
+        bootstrap.log(f'Received key {key[100:111]} from {address}:{port}')
 
         # Add the node to the list
         bootstrap.add_node(node_id, address, port, key)
@@ -87,12 +86,12 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
       try:
         message = json.loads(message.decode())
       except json.JSONDecodeError:
-        print(f'[BOOTSTRAP] Invalid message received from {port}')
+        bootstrap.log(f'Invalid message received from {address}:{port}')
         continue
 
       if message['message_type'] == 'ack':
         remaining_nodes.remove(message['id'])
-        print(f'[BOOTSTRAP] Node {message["id"]} ready for transactions')
+        bootstrap.log(f'Node {message["id"]} ready for transactions')
 
     # Distribute the coins to all nodes
     for node in blockchain.nodes:
@@ -109,20 +108,20 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
         try:
           message = json.loads(message.decode())
         except json.JSONDecodeError:
-          print(f'[BOOTSTRAP] Invalid message received from {port}')
+          bootstrap.log(f'Invalid message received from {address}:{port}')
           continue
 
         if message['message_type'] == 'transaction':
-          print(f'[BOOTSTRAP] Received transaction from {port}')
+          bootstrap.log(f'Received message from {address}:{port} (transaction)')
           bootstrap.receive_transaction(message['transaction'])
 
         elif message['message_type'] == 'block':
-          print(f'[BOOTSTRAP] Received block from {port}')
+          bootstrap.log(f'Received message from {address}:{port} (block)')
           bootstrap.receive_block(message['block'])
 
         else:
-          print(f'[BOOTSTRAP] Invalid message received from {port}')
+          bootstrap.log(f'Invalid message received from {address}:{port}')
     except KeyboardInterrupt:
-      print('[BOOTSTRAP] Bootstrap process terminated by user')
+      bootstrap.log('Process terminated by user')
       s.close()
       return
