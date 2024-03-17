@@ -1,3 +1,17 @@
+"""A module for the Node class and the Bootstrap class.
+
+This module contains the Node class and the Bootstrap class. The Node class
+is used to represent a node in the blockchain network, while the Bootstrap
+class is used to represent the bootstrap node.
+
+The Node class is used to create a node in the blockchain network. It contains
+methods for creating and validating transactions, as well as for mining blocks.
+
+The Bootstrap class is used to create the bootstrap node in the blockchain
+network. It contains methods for creating the genesis block, adding nodes to
+the network, and broadcasting the blockchain to all nodes.
+"""
+
 import json
 import socket
 import base64
@@ -16,6 +30,47 @@ from transaction import Transaction
 from util import termcolor
 
 class Node:
+  """A class to represent a node in the blockchain network.
+
+  Attributes:
+    verbose (bool): A boolean indicating whether to increase output verbosity.
+    debug (bool): A boolean indicating whether to enable debug mode.
+    node_color (str): A string representing the color of the node.
+
+    id (int): An integer representing the ID of the node.
+    wallet (Wallet): A Wallet object representing the wallet of the node.
+    balance (float): A float representing the balance of the node.
+    nonce (int): An integer representing the nonce of the node.
+    blockchain (Blockchain): A Blockchain object representing the blockchain of the network.
+    stake (float): A float representing the stake of the node in the blockchain.
+
+    current_block (list): A list of Transaction objects representing the current block of transactions not mined yet.
+    current_fees (float): A float representing the current fees from completed transactions.
+
+    past_fees (Queue): A Queue object representing the past fees of the blockchain.
+    past_pools (Queue): A Queue object representing the past pools of validators of the blockchain.
+
+  Methods:
+    log: Log a message to the console.
+    colorize: Colorize a message using the node color.
+    send: Send a message to a specified address and port.
+    set_stake: Set the stake of the node in the blockchain.
+    execute_transaction: Execute a transaction.
+    create_transaction: Create a transaction.
+    sign_transaction: Sign a transaction using the node's private key.
+    broadcast_transaction: Broadcast a transaction to all nodes in the blockchain network.
+    receive_transaction: Receive a transaction from another node in the blockchain network.
+    validate_transaction: Validate a transaction received from another node in the blockchain network.
+    verify_signature: Verify the signature of a transaction using the sender's public key.
+    register_transaction: Register a transaction in the blockchain.
+    mine_block: Mine a block in the blockchain.
+    get_validator_from_pool: Get the validator from a pool of validators.
+    broadcast_block: Broadcast a block to all nodes in the blockchain network.
+    receive_block: Receive a block from another node in the blockchain network.
+    validate_block: Validate a block received from another node in the blockchain network.
+    register_block: Register a block in the blockchain.
+  """
+
   def __init__(self, verbose, debug):
     self.verbose = verbose
     self.debug = debug
@@ -27,7 +82,6 @@ class Node:
     self.nonce = 0
     self.blockchain = None
     self.stake = 0
-    self.socket = None
 
     self.current_block = []
     self.current_fees = 0
@@ -36,6 +90,12 @@ class Node:
     self.past_pools = Queue()
 
   def log(self, message):
+    """Log a message to the console setting a colored prefix for node identification.
+
+    Args:
+      message (str): The message.
+    """
+
     if self.verbose:
       if self.id is None or self.debug or self.id <= 0:
         if self.id == 0:
@@ -46,23 +106,58 @@ class Node:
           print(f'{self.colorize(f"[NODE-{self.id}]")} {message}')
 
   def colorize(self, message):
+    """Colorize a message based on node_color.
+
+    Args:
+      message (str): The message.
+    """
+
     if self.node_color is None:
       return message
     return self.node_color + termcolor.bold(message) + termcolor.RESET_COLOR
 
   @staticmethod
   def send(message, address, port):
+    """Send a message to a specified address and port using UDP.
+
+    Args:
+      message (str): The message.
+      address (str): The address.
+      port (int): The port.
+    """
+
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
       s.sendto(message.encode(), (address, port))
 
   def set_stake(self, amount):
+    """Set the stake of the node in the blockchain.
+
+    Args:
+      amount (float): The amount to stake.
+    """
+
     self.log(termcolor.magenta(f'Setting stake to {amount}'))
 
     self.execute_transaction(-1, 'stake', amount)
 
-    return True
-
   def execute_transaction(self, receiver_id, type_of_transaction, value):
+    """Executes a transaction.
+
+    This method checks if the transaction is valid and if the sender has
+    enough balance to execute the transaction. If the transaction is valid,
+    it creates a transaction object using the create_transaction method and
+    broadcasts the transaction to all nodes in the blockchain network using
+    the broadcast_transaction method.
+
+    Args:
+      receiver_id (int): The ID of the receiver.
+      type_of_transaction (str): The type of transaction.
+      value (float): The value of the transaction.
+
+    Returns:
+      bool: True if the transaction was executed successfully, False otherwise.
+    """
+
     receiver = next((node for node in self.blockchain.nodes if node['id'] == receiver_id), None) if receiver_id != -1 else {'key': '0'}
     if not receiver:
       self.log(termcolor.red(f'Execute: Invalid receiver: {receiver_id}'))
@@ -104,6 +199,17 @@ class Node:
     return True
 
   def create_transaction(self, receiver_address, type_of_transaction, value):
+    """Creates a transaction object based on the given parameters.
+
+    Args:
+      receiver_address (str): The address of the receiver.
+      type_of_transaction (str): The type of the transaction, one of 'coins', 'message', or 'stake'.
+      value (float): The value of the transaction.
+
+    Returns:
+      Transaction: The transaction.
+    """
+
     transaction = {
       'uuid': str(uuid.uuid4()),
       'sender_address': self.wallet.get_address(),
@@ -125,6 +231,17 @@ class Node:
     return Transaction(**transaction)
 
   def sign_transaction(self, transaction):
+    """Signs a transaction using the node's private key.
+
+    This method uses methods from the 'crypto' module to sign the transaction.
+
+    Args:
+      transaction (dict): The transaction.
+
+    Returns:
+      str: The signature of the transaction.
+    """
+
     transaction_bytes = json.dumps(transaction).encode()
 
     signature = self.wallet.private_key.sign(
@@ -139,6 +256,12 @@ class Node:
     return base64.b64encode(signature).decode()
 
   def broadcast_transaction(self, transaction):
+    """Broadcasts a transaction to all nodes in the blockchain network.
+
+    Args:
+      transaction (Transaction): The transaction.
+    """
+
     message = json.dumps({
       'message_type': 'transaction',
       'transaction': dict(transaction)
@@ -150,6 +273,19 @@ class Node:
       self.send(message, node['address'], node['port'])
 
   def receive_transaction(self, transaction):
+    """Handles a transaction received from another node in the blockchain network.
+
+    This method first validates the transaction using the validate_transaction
+    method. If the transaction is valid, it registers the transaction using the
+    register_transaction method.
+
+    Args:
+      transaction (dict): The transaction.
+
+    Returns:
+      bool: True if the transaction was received and handled successfully, False otherwise.
+    """
+
     self.log(termcolor.blue(f'Received transaction {termcolor.underline(transaction["uuid"])}'))
 
     if not self.validate_transaction(transaction):
@@ -160,6 +296,24 @@ class Node:
     return True
 
   def validate_transaction(self, transaction):
+    """Validates a transaction
+
+    This method checks if the transaction is valid based on the following
+    criteria:
+      - The transaction has all the required keys.
+      - The sender and receiver addresses are valid.
+      - The type of the transaction is valid.
+      - The nonce of the sender is valid.
+      - The signature of the transaction is valid.
+      - The sender has enough balance to execute the transaction.
+
+    Args:
+      transaction (dict): The transaction.
+
+    Returns:
+      bool: True if the transaction is valid, False otherwise.
+    """
+
     self.log(termcolor.magenta(f'Validating transaction {termcolor.underline(transaction["uuid"])}'))
 
     required_keys = ['uuid', 'sender_address', 'receiver_address', 'timestamp', 'type_of_transaction', 'value', 'nonce', 'signature']
@@ -222,6 +376,17 @@ class Node:
     return True
 
   def verify_signature(self, transaction):
+    """Verifies the signature of a transaction using the sender's public key.
+
+    This method uses methods from the 'crypto' module to verify the signature.
+
+    Args:
+      transaction (dict): The transaction.
+
+    Returns:
+      bool: True if the signature is valid, False otherwise.
+    """
+
     signature = base64.b64decode(transaction['signature'])
     transaction_bytes = json.dumps({key: value for key, value in transaction.items() if key != 'signature'}).encode()
     public_key = serialization.load_pem_public_key(transaction['sender_address'].encode())
@@ -242,6 +407,12 @@ class Node:
       return False
 
   def register_transaction(self, transaction):
+    """Registers a transaction in the blockchain and updates info accordingly.
+
+    Args:
+      transaction (dict): The transaction.
+    """
+
     self.log(termcolor.magenta(f'Registering transaction {termcolor.underline(transaction["uuid"])}'))
 
     sender = next((node for node in self.blockchain.nodes if node['key'] == transaction['sender_address']), None)
@@ -281,6 +452,17 @@ class Node:
       self.mine_block()
 
   def mine_block(self):
+    """Mines a block in the blockchain.
+
+    This method first creates a list of validators based on the stake of each
+    node in the blockchain. It then uses the get_validator_from_pool method to
+    pick a validator from the list of validators. If the node is picked as the
+    validator, it creates a new block using the current block of transactions
+    and broadcasts the block to all nodes in the blockchain network using the
+    broadcast_block method.
+
+    """
+
     entries = []
     for node in self.blockchain.nodes:
       entries.extend([node['id']] * int(node['stake']))
@@ -309,6 +491,16 @@ class Node:
 
   @staticmethod
   def get_validator_from_pool(pool, seed):
+    """Picks a validator from a pool of validators based on a specified seed.
+
+    Args:
+      pool (list): A list of validators.
+      seed (str): The seed.
+
+    Returns:
+      int: The ID of the validator.
+    """
+
     random.seed(seed)
 
     if not pool:
@@ -317,6 +509,12 @@ class Node:
     return random.choice(pool)
 
   def broadcast_block(self, block):
+    """Broadcasts a block to all nodes in the blockchain network.
+
+    Args:
+      block (Block): The block.
+    """
+
     message = json.dumps({
       'message_type': 'block',
       'block': dict(block)
@@ -327,6 +525,18 @@ class Node:
       self.send(message, node['address'], node['port'])
 
   def receive_block(self, block):
+    """Handles a block received from another node in the blockchain network.
+
+    This method first validates the block using the validate_block method. If
+    the block is valid, it registers the block using the register_block method.
+
+    Args:
+      block (dict): The block.
+
+    Returns:
+      bool: True if the block was received and handled successfully, False otherwise.
+    """
+
     self.log(termcolor.blue(f'Received block {block["index"]}'))
 
     if len(self.current_block) < self.blockchain.block_capacity:
@@ -342,6 +552,20 @@ class Node:
     return True
 
   def validate_block(self, block):
+    """Validates a block.
+
+    This method checks if the block is valid based on the following criteria:
+      - The block has all the required keys.
+      - The previous hash of the block is valid.
+      - The validator of the block is valid.
+
+    Args:
+      block (dict): The block.
+
+    Returns:
+      bool: True if the block is valid, False otherwise.
+    """
+
     self.log(termcolor.magenta(f'Validating block {block["index"]}'))
 
     required_keys = ['index', 'validator', 'transactions', 'previous_hash', 'timestamp', 'hash']
@@ -362,6 +586,12 @@ class Node:
     return True
 
   def register_block(self, block):
+    """Registers a block in the blockchain and updates info accordingly.
+
+    Args:
+      block (dict): The block.
+    """
+
     self.log(termcolor.magenta(f'Registering block {block["index"]}'))
 
     self.blockchain.add_block(Block(**block))
@@ -383,6 +613,15 @@ class Bootstrap(Node):
     self.id = 0
 
   def create_genesis_block(self, nodes_count):
+    """Creates the genesis block and adds it to the blockchain.
+
+    This method also credits the bootstrap node with an amount based on the
+    number of nodes in the blockchain network.
+
+    Args:
+      nodes_count (int): The number of nodes in the blockchain network.
+    """
+
     # Create the initial transaction
     transaction = Transaction(
       str(uuid.uuid4()),
@@ -410,6 +649,18 @@ class Bootstrap(Node):
     self.log(termcolor.blue('Genesis block created'))
 
   def add_node(self, id, address, port, key, nonce=0, balance=0, stake=0):
+    """Adds a node to the blockchain network.
+
+    Args:
+      id (int): The ID of the node.
+      address (str): The address of the node.
+      port (int): The port of the node.
+      key (str): The public key of the node.
+      nonce (int): The nonce of the node.
+      balance (float): The balance of the node.
+      stake (float): The stake of the node.
+    """
+
     self.blockchain.nodes.append({
       'id': id,
       'address': address,
