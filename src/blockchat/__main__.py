@@ -4,6 +4,8 @@ import multiprocessing
 from bootstrap_p import start_bootstrap
 from client_p import start_node
 
+from util import termcolor
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("--nodes", "-n", type=int, required=True, help="Number of nodes")
@@ -28,7 +30,7 @@ def main():
       args=(nodes, capacity, address, port, verbose, debug)
     )
     processes = [bootstrap_process]
-    print('[INIT] Starting bootstrap process')
+    print(termcolor.bold('[INIT]'), termcolor.magenta('Starting bootstrap process'))
     bootstrap_process.start()
 
     # Start the client processes
@@ -38,7 +40,7 @@ def main():
         args=(address, port, nodes, verbose, debug)
       )
       processes.append(node_process)
-      print(f'[INIT] Starting node process {i}')
+      print(termcolor.bold('[INIT]'), termcolor.magenta(f'Starting client process {i}'))
       node_process.start()
 
     # Wait for all processes to finish
@@ -50,8 +52,8 @@ def main():
     for process in processes:
       process.join()
 
-    print('[INIT] All processes terminated')
-    print('[INIT] Exiting')
+    print(termcolor.bold('[INIT]'), termcolor.green('All processes finished'))
+    print(termcolor.bold('[INIT]'), termcolor.magenta('Exiting'))
 
 
 if __name__ == '__main__':

@@ -4,6 +4,8 @@ import json
 from node import Node
 from blockchain import Blockchain
 
+from util import termcolor
+
 def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
   # Create the client node
   client = Node(verbose, debug)
@@ -14,13 +16,13 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
     s.bind(('localhost', 0))
     address, port = s.getsockname()
     client.socket = s
-    client.log(f'Client node listening on {address}:{port}')
+    client.log(termcolor.blue(f'Client node listening on {termcolor.underline(f"{address}:{port}")}'))
 
     # Check if bootstrap is available
     s.settimeout(0.1)
     while True:
       try:
-        client.log('Pinging bootstrap node...')
+        client.log(termcolor.magenta('Pinging bootstrap node...'))
         s.sendto(b'ping', (bootstrap_address, bootstrap_port))
         message, (address, port) = s.recvfrom(1024)
 
@@ -28,8 +30,8 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
           break
 
       except socket.timeout:
-        client.log('Bootstrap node is not available. Retrying...')
-    client.log('Bootstrap node is available')
+        client.log(termcolor.yellow('Bootstrap node is not available. Retrying...'))
+    client.log(termcolor.green('Bootstrap node is available'))
     s.settimeout(None)
 
     while True:
@@ -42,7 +44,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
       'message_type': 'key',
       'key': client.wallet.get_address()
     })
-    client.log('Sending key to bootstrap node')
+    client.log(termcolor.magenta('Sending key to bootstrap node'))
     s.sendto(message.encode(), ('localhost', bootstrap_port))
 
     while True:
@@ -53,7 +55,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
       try:
         message = json.loads(message.decode())
       except json.JSONDecodeError:
-        client.log(f'Invalid message received from {address}:{port}')
+        client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
         continue
 
       # Check if the message is an id message
@@ -61,9 +63,12 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
         # Set the id
         client.id = message['id']
 
+        # Set node color
+        client.node_color = message['color']
+
         # Set the blockchain
         client.blockchain = Blockchain(**message['blockchain'])
-        client.log('Received id and blockchain from bootstrap node')
+        client.log(termcolor.blue('Received id and blockchain from bootstrap node'))
 
         # Send an ack to the bootstrap node
         message = json.dumps({
@@ -75,7 +80,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
         break
 
       else:
-        client.log(f'Invalid message received from {address}:{port}')
+        client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
 
     # Receive initial coin transactions from bootstrap
     for i in range(nodes_count):
@@ -85,7 +90,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
         try:
           message = json.loads(message.decode())
         except json.JSONDecodeError:
-          client.log(f'Invalid message received from {address}:{port}')
+          client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
           continue
 
         if message['message_type'] == 'transaction':
@@ -104,20 +109,20 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
         try:
           message = json.loads(message.decode())
         except json.JSONDecodeError:
-          client.log(f'Invalid message received from {address}:{port}')
+          client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
           continue
 
         if message['message_type'] == 'transaction':
-          client.log(f'Received message from {address}:{port} (transaction)')
+          client.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (transaction)'))
           client.receive_transaction(message['transaction'])
 
         elif message['message_type'] == 'block':
-          client.log(f'Received message from {address}:{port} (block)')
+          client.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (block)'))
           client.receive_block(message['block'])
 
         else:
-          client.log(f'Invalid message received from {address}:{port}')
+          client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
     except KeyboardInterrupt:
-      client.log('Process terminated by user')
+      client.log(termcolor.blue('Process terminated by user'))
       s.close()
       return
