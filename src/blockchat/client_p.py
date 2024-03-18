@@ -1,3 +1,9 @@
+"""A module for a client process.
+
+This module contains the start_node function, which is used to start a client
+process of the network.
+"""
+
 import socket
 import json
 
@@ -7,7 +13,19 @@ from blockchain import Blockchain
 from util import termcolor
 
 def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
-  # Create the client node
+  """Starts a client process.
+
+  This function starts a client process, which is used to connect to the network
+  and send and receive messages.
+
+  Args:
+    bootstrap_address (str): The address of the bootstrap node.
+    bootstrap_port (int): The port of the bootstrap node.
+    nodes_count (int): The number of nodes in the network.
+    verbose (bool): Whether to enable verbose mode.
+    debug (bool): Whether to enable debug mode.
+  """
+
   client = Node(verbose, debug)
 
   # Start the UDP server
@@ -15,10 +33,9 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
     # Bind to a random port
     s.bind(('localhost', 0))
     address, port = s.getsockname()
-    client.socket = s
     client.log(termcolor.blue(f'Client node listening on {termcolor.underline(f"{address}:{port}")}'))
 
-    # Check if bootstrap is available
+    # Ping boostrap node every 0.1 seconds until it responds
     s.settimeout(0.1)
     while True:
       try:
@@ -39,7 +56,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
       if message == b'ready' and port == bootstrap_port and address == bootstrap_address:
         break
 
-    # Send the wallet key to the bootstrap node
+    # Send the public key to the bootstrap node
     message = json.dumps({
       'message_type': 'key',
       'key': client.wallet.get_address()
@@ -60,13 +77,8 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
 
       # Check if the message is an id message
       if message['message_type'] == 'id' and (address, port) == (bootstrap_address, bootstrap_port):
-        # Set the id
         client.id = message['id']
-
-        # Set node color
         client.node_color = message['color']
-
-        # Set the blockchain
         client.blockchain = Blockchain(**message['blockchain'])
         client.log(termcolor.blue('Received id and blockchain from bootstrap node'))
 
@@ -87,6 +99,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
       while True:
         message, (address, port) = s.recvfrom(4096)
 
+        # Try parsing the message
         try:
           message = json.loads(message.decode())
         except json.JSONDecodeError:
@@ -97,7 +110,6 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
           client.receive_transaction(message['transaction'])
           break
 
-    # Stake the coins
     client.set_stake(10)
 
     # Listen for messages
@@ -123,6 +135,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
         else:
           client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
     except KeyboardInterrupt:
+      # Terminate the process if the user interrupts it
       client.log(termcolor.blue('Process terminated by user'))
       s.close()
       return

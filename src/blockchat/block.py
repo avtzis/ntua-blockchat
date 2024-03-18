@@ -1,9 +1,40 @@
+"""A module for the Block class.
+
+This module contains the Block class, which is used to represent a
+block in the blockchain.
+"""
+
 import hashlib
 import json
 from datetime import datetime
 
 class Block:
+  """A class to represent a block in the blockchain.
+
+  Attributes:
+    index (int): The index of the block.
+    timestamp (str): The timestamp of the block.
+    validator (str): The validator of the block.
+    transactions (list): A list of transactions in the block.
+    previous_hash (str): The hash of the previous block.
+    hash (str): The hash of the block.
+
+  Methods:
+    calculate_hash: Calculate the hash of the block.
+  """
+
   def __init__(self, index, validator, transactions, previous_hash, timestamp=None, hash=None):
+    """Initializes a new instance of Block.
+
+    Args:
+      index (int): The index of the block.
+      validator (str): The validator of the block.
+      transactions (list): A list of transactions in the block.
+      previous_hash (str): The hash of the previous block.
+      timestamp (str, optional): The timestamp of the block. Defaults to None.
+      hash (str, optional): The hash of the block. Defaults to None.
+    """
+
     self.index = index
     self.timestamp = datetime.now().isoformat() if timestamp is None else timestamp
     self.validator = validator

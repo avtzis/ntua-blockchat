@@ -1,3 +1,9 @@
+"""A module for the Bootstrap process.
+
+This module contains the start_bootstrap function, which is used to start the
+bootstrap process of the network.
+"""
+
 import socket
 import json
 import itertools
@@ -8,27 +14,36 @@ from blockchain import Blockchain
 from util import termcolor
 
 def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_port, verbose, debug):
-  # Create the blockchain
+  """Starts the bootstrap process of the network.
+
+  This function starts the bootstrap process of the network, which is used to
+  initialize the blockchain and the nodes. It creates the blockchain, the
+  bootstrap node, the genesis block, and waits for the nodes to connect.
+
+  Args:
+    nodes_count (int): The number of nodes in the network.
+    block_capacity (int): The capacity of each block in the blockchain.
+    bootstrap_address (str): The address of the bootstrap node.
+    bootstrap_port (int): The port of the bootstrap node.
+    verbose (bool): Whether to enable verbose mode.
+    debug (bool): Whether to enable debug mode.
+  """
+
   blockchain = Blockchain(block_capacity)
   print(termcolor.red('[BOOTSTRAP]'), termcolor.blue('Blockchain created'))
 
-  # Create the bootstrap node
   bootstrap = Bootstrap(verbose, debug, blockchain)
 
   colors = termcolor.colors
   bootstrap.node_color = colors.pop(0)
   color = itertools.cycle(colors)
 
-  # Create the genesis block
   bootstrap.create_genesis_block(nodes_count)
-  # print('[BOOTSTRAP] Blockchain: ', bootstrap.blockchain)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-    # Bind to the specified address and port
     s.bind((bootstrap_address, bootstrap_port))
     address, port = s.getsockname()
-    bootstrap.socket = s
     bootstrap.log(termcolor.blue(f'Listening on {termcolor.underline(f"{address}:{port}")}'))
 
     # Wait for the nodes to connect
@@ -45,15 +60,12 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
     for address in addresses:
       s.sendto(b'ready', address)
 
-    # Add bootstrap to the list of nodes
     bootstrap.add_node(0, bootstrap_address, bootstrap_port, bootstrap.wallet.get_address(), bootstrap.nonce, bootstrap.balance)
 
     # Wait for the nodes to send their public keys
     node_id = 0
     while len(blockchain.nodes) - 1 < nodes_count:
       node_id += 1
-
-      # Receive the key from the node
       message, (address, port) = s.recvfrom(1024)
 
       # Try parsing the message
@@ -68,13 +80,11 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
         key = message['key']
         bootstrap.log(termcolor.blue(f'Received key {termcolor.underline(key[100:111])} from {termcolor.underline(f"{address}:{port}")}'))
 
-        # Add the node to the list
         bootstrap.add_node(node_id, address, port, key)
 
     # Broadcast id and blockchain to all nodes
     for node in blockchain.nodes:
-      # Skip if node is the bootstrap
-      if node['id'] == 0:
+      if node['id'] == 0:  # Skip if node is the bootstrap
         continue
 
       message = json.dumps({
@@ -131,6 +141,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
         else:
           bootstrap.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
     except KeyboardInterrupt:
+      # Terminate the process if the user interrupts it
       bootstrap.log(termcolor.blue('Process terminated by user'))
       s.close()
       return
