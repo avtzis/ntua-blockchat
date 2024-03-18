@@ -10,7 +10,7 @@ BlockChat is an innovative platform developed as part of the Distributed Systems
 - [Xhonatan Lukaj](https://github.com/ntua-el19230) - el19230
 
 ## Goal and Requirements
-BlockChat is an innovative platform developed as part of the Distributed Systems course at the National Technical University of Athens, School of Electrical and Computer Engineering. It leverages blockchain technology to provide a secure and decentralized environment for exchanging messages and conducting transactions with BlockChat Coins (BCC). By implementing a Proof of Stake (PoS) consensus algorithm, BlockChat ensures a secure and efficient mechanism for transaction validation and consensus across the network.
+The primary goal of BlockChat is to create a distributed platform where users can safely and reliably send messages and conduct transactions without the need for a central authority. This project aims not only to demonstrate the practical application of blockchain technology beyond cryptocurrencies but also to explore the advantages of the Proof of Stake mechanism in ensuring network consensus and security.
 
 ### Core Requirements:
 
