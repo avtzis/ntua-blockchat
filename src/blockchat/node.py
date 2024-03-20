@@ -13,7 +13,6 @@ the network, and broadcasting the blockchain to all nodes.
 """
 
 import json
-import socket
 import base64
 import random
 import uuid
@@ -22,6 +21,7 @@ import re
 from datetime import datetime
 from threading import Thread, Lock
 from queue import Queue
+from socket import timeout
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -75,17 +75,20 @@ class Node:
     register_block: Register a block in the blockchain.
   """
 
-  def __init__(self, verbose, debug, stake=0.0):
+  def __init__(self, bootstrap_address, bootstrap_port, verbose, debug, stake=0.0):
     """Initializes a new instance of Node.
 
     Args:
       verbose (bool): A boolean indicating whether to increase output verbosity.
       debug (bool): A boolean indicating whether to enable debug mode.
     """
+    self.bootstrap_address = bootstrap_address
+    self.bootstrap_port = bootstrap_port
 
     self.verbose = verbose
     self.debug = debug
     self.node_color = None
+    self.node_counter = None
 
     self.id = None
     self.wallet = Wallet()
@@ -93,6 +96,7 @@ class Node:
     self.nonce = 0
     self.blockchain = None
     self.stake = stake
+    self.socket = None
 
     self.current_block = []
     self.current_fees = 0
@@ -110,6 +114,10 @@ class Node:
     self.test_messenger = Thread(target=self.transact_from_file)
     self.transaction_handler = Thread(target=self.handle_transactions)
     self.block_handler = Thread(target=self.handle_blocks)
+
+    self.test_messenger.daemon = True
+    self.transaction_handler.daemon = True
+    self.block_handler.daemon = True
 
   def log(self, message):
     """Log a message to the console setting a colored prefix for node identification.
@@ -138,8 +146,7 @@ class Node:
       return message
     return self.node_color + termcolor.bold(message) + termcolor.RESET_COLOR
 
-  @staticmethod
-  def send(message, address, port):
+  def send(self, message, address, port):
     """Send a message to a specified address and port using UDP.
 
     Args:
@@ -148,8 +155,69 @@ class Node:
       port (int): The port.
     """
 
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-      s.sendto(message.encode(), (address, port))
+    self.socket.sendto(message.encode(), (address, port))
+
+  def ping_bootstrap(self):
+    """Pings bootstrap node to check if it is online, until it responds.
+
+    Args:
+      address (str): The address of the node.
+      port (int): The port of the node.
+    """
+    self.socket.settimeout(0.1)
+    while True:
+      try:
+        self.log(termcolor.magenta('Pinging bootstrap node...'))
+        self.send(json.dumps({'message_type': 'ping'}), self.bootstrap_address, self.bootstrap_port)
+        message, (address, port) = self.socket.recvfrom(1024)
+
+        if message == b'pong' and address == self.bootstrap_address and port == self.bootstrap_port:
+          break
+
+      except timeout:
+        self.log(termcolor.yellow('Bootstrap node is not available. Retrying...'))
+    self.log(termcolor.green('Bootstrap node is available'))
+    self.socket.settimeout(None)
+
+  def send_key(self):
+    """Sends the public key of the node to the bootstrap node."""
+
+    message = json.dumps({
+      'message_type': 'key',
+      'key': self.wallet.get_address(),
+      'stake': self.stake
+    })
+
+    self.log(termcolor.magenta('Sending key to bootstrap node'))
+    self.send(message, self.bootstrap_address, self.bootstrap_port)
+
+  def add_node(self, id, key, address, port, stake=0, nonce=0, balance=0):
+    """Adds a node to the blockchain network.
+
+    Args:
+      id (int): The ID of the node.
+      address (str): The address of the node.
+      port (int): The port of the node.
+      key (str): The public key of the node.
+      nonce (int): The nonce of the node.
+      balance (float): The balance of the node.
+      stake (float): The stake of the node.
+    """
+
+    new_node = {
+      'id': id,
+      'address': address,
+      'port': port,
+      'key': key,
+      'stake': stake,
+      'balance': balance,
+      'nonce': nonce
+    }
+    self.blockchain.nodes.append(new_node)
+    self.node_counter += 1
+    self.log(termcolor.blue(f'Added node {new_node["id"]}'))
+
+    return new_node
 
   def set_stake(self, amount):
     """Set the stake of the node in the blockchain.
@@ -699,11 +767,12 @@ class Node:
     self.log(termcolor.green(f'Block {block["index"]} registered successfully'))
 
 class Bootstrap(Node):
-  def __init__(self, verbose, debug, blockchain, stake=0.0):
-    super().__init__(verbose, debug, stake)
+  def __init__(self, bootstrap_address, bootstrap_port, verbose, debug, blockchain, stake=0.0):
+    super().__init__(bootstrap_address, bootstrap_port, verbose, debug, stake)
 
     self.blockchain = blockchain
     self.id = 0
+    self.node_counter = 0
 
   def create_genesis_block(self, nodes_count):
     """Creates the genesis block and adds it to the blockchain.
@@ -736,27 +805,39 @@ class Bootstrap(Node):
 
     self.log(termcolor.blue('Genesis block created'))
 
-  def add_node(self, id, address, port, key, nonce=0, balance=0, stake=0):
-    """Adds a node to the blockchain network.
+  def broadcast_node(self, new_node):
+    """Broadcasts a newly added node to all nodes in the blockchain network.
 
     Args:
       id (int): The ID of the node.
       address (str): The address of the node.
       port (int): The port of the node.
       key (str): The public key of the node.
-      nonce (int): The nonce of the node.
-      balance (float): The balance of the node.
-      stake (float): The stake of the node.
     """
 
-    self.blockchain.nodes.append({
-      'id': id,
-      'address': address,
-      'port': port,
-      'key': key,
-      'balance': balance,
-      'stake': stake,
-      'nonce': nonce
+    message = json.dumps({
+      'message_type': 'node',
+      'node': new_node
     })
 
-    self.log(termcolor.blue(f'Added node {id}'))
+    self.log(termcolor.magenta(f'Broadcasting new node: {new_node["id"]}'))
+    for node in self.blockchain.nodes:
+      if node['id'] != new_node['id'] and node['id'] != 0:
+        self.send(message, node['address'], node['port'])
+
+  def activate_node(self, node, color):
+    """Activates a node in the blockchain network.
+
+    Args:
+      node (dict): The node.
+    """
+
+    message = json.dumps({
+      'message_type': 'activate',
+      'id': node['id'],
+      'color': color,
+      'blockchain': dict(self.blockchain)
+    })
+
+    self.log(termcolor.magenta(f'Activating node: {node["id"]}'))
+    self.send(message, node['address'], node['port'])

@@ -12,7 +12,7 @@ from blockchain import Blockchain
 
 from util import termcolor
 
-def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
+def start_node(nodes_count, block_capacity, bootstrap_address, bootstrap_port, verbose, debug):
   """Starts a client process.
 
   This function starts a client process, which is used to connect to the network
@@ -26,100 +26,33 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
     debug (bool): Whether to enable debug mode.
   """
 
-  client = Node(verbose, debug, 10.0)
+  client = Node(bootstrap_address, bootstrap_port, verbose, debug, 10.0)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
     # Bind to a random port
     s.bind(('localhost', 0))
     address, port = s.getsockname()
+    client.socket = s
     client.log(termcolor.blue(f'Client node listening on {termcolor.underline(f"{address}:{port}")}'))
 
-    # Ping boostrap node every 0.1 seconds until it responds
-    s.settimeout(0.1)
-    while True:
-      try:
-        client.log(termcolor.magenta('Pinging bootstrap node...'))
-        s.sendto(b'ping', (bootstrap_address, bootstrap_port))
-        message, (address, port) = s.recvfrom(1024)
+    # Ping bootstrap to see if it is active
+    client.ping_bootstrap()
 
-        if message == b'pong' and port == bootstrap_port and address == bootstrap_address:
-          break
+    # Send public-key to bootstrap to get an id
+    client.send_key()
 
-      except socket.timeout:
-        client.log(termcolor.yellow('Bootstrap node is not available. Retrying...'))
-    client.log(termcolor.green('Bootstrap node is available'))
-    s.settimeout(None)
-
-    while True:
-      message, (address, port) = s.recvfrom(1024)
-      if message == b'ready' and port == bootstrap_port and address == bootstrap_address:
-        break
-
-    # Send the public key to the bootstrap node
-    message = json.dumps({
-      'message_type': 'key',
-      'key': client.wallet.get_address(),
-      'stake': 10.0
-    })
-    client.log(termcolor.magenta('Sending key to bootstrap node'))
-    s.sendto(message.encode(), ('localhost', bootstrap_port))
-
-    while True:
-      # Wait for the response containing all essential information
-      message, (address, port) = s.recvfrom((nodes_count + 1)*1024)
-
-      # Try parsing the message
-      try:
-        message = json.loads(message.decode())
-      except json.JSONDecodeError:
-        client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
-        continue
-
-      # Check if the message is an id message
-      if message['message_type'] == 'id' and (address, port) == (bootstrap_address, bootstrap_port):
-        client.id = message['id']
-        client.node_color = message['color']
-        client.blockchain = Blockchain(**message['blockchain'])
-        client.log(termcolor.blue('Received id and blockchain from bootstrap node'))
-
-        # Send an ack to the bootstrap node
-        message = json.dumps({
-          'message_type': 'ack',
-          'id': client.id
-        })
-        s.sendto(message.encode(), (bootstrap_address, bootstrap_port))
-
-        break
-
-      else:
-        client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
-
-    client.transaction_handler.start()
-    client.block_handler.start()
-
-    # Receive initial coin transactions from bootstrap
-    for i in range(nodes_count):
-      while True:
-        message, (address, port) = s.recvfrom(4096)
-
-        # Try parsing the message
-        try:
-          message = json.loads(message.decode())
-        except json.JSONDecodeError:
-          client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
-          continue
-
-        if message['message_type'] == 'transaction':
-          client.receive_transaction(message['transaction'])
-          break
-
-    client.test_messenger.start()
+    # Test messenger flag to start send test transactions
+    test_flag = True
 
     # Listen for messages
     try:
       while True:
-        message, (address, port) = s.recvfrom(4096*client.blockchain.block_capacity)
+        if test_flag and client.balance > 0 and client.node_counter == nodes_count:
+          client.test_messenger.start()
+          test_flag = False
+
+        message, (address, port) = s.recvfrom(4096*block_capacity)
 
         # Try parsing the message
         try:
@@ -128,7 +61,23 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
           client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
           continue
 
-        if message['message_type'] == 'transaction':
+        if message['message_type'] == 'activate' and (address, port) == (bootstrap_address, bootstrap_port):
+          client.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (activate)'))
+          client.id = message['id']
+          client.node_color = message['color']
+          client.blockchain = Blockchain(**message['blockchain'])
+          client.node_counter = len(client.blockchain.nodes)
+          client.log(termcolor.blue('Received id and blockchain from bootstrap node'))
+          # client.validate_chain()
+
+          client.transaction_handler.start()
+          client.block_handler.start()
+
+        elif message['message_type'] == 'node' and (address, port) == (bootstrap_address, bootstrap_port):
+          client.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (node)'))
+          client.add_node(**message['node'])
+
+        elif message['message_type'] == 'transaction':
           client.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (transaction)'))
           client.receive_transaction(message['transaction'])
 

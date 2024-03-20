@@ -34,10 +34,10 @@ def main():
     bootstrap_process.start()
 
     # Start the client processes
-    for i in range(nodes):
+    for i in range(nodes - 1):
       node_process = multiprocessing.Process(
         target=start_node,
-        args=(address, port, nodes, verbose, debug)
+        args=(nodes, capacity, address, port, verbose, debug)
       )
       processes.append(node_process)
       print(termcolor.bold('[INIT]'), termcolor.magenta(f'Starting client process {i}'))
