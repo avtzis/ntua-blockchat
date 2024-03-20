@@ -56,6 +56,18 @@ class Blockchain:
 
     return self.chain[-1]
 
+  def is_valid(self):
+    """Checks if the blockchain is valid.
+
+    Returns:
+      bool: Whether the blockchain is valid.
+    """
+
+    for i in range(1, len(self.chain)):
+      if self.chain[i].previous_hash != self.chain[i-1].hash:
+        return False
+    return True
+
   def __str__(self):
     return str([str(block) for block in self.chain])
 

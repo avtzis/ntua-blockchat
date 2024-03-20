@@ -63,12 +63,14 @@ def start_node(nodes_count, block_capacity, bootstrap_address, bootstrap_port, v
 
         if message['message_type'] == 'activate' and (address, port) == (bootstrap_address, bootstrap_port):
           client.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (activate)'))
+          client.log(termcolor.blue('Received id and blockchain from bootstrap node'))
           client.id = message['id']
           client.node_color = message['color']
-          client.blockchain = Blockchain(**message['blockchain'])
+
+          blockchain = Blockchain(**message['blockchain'])
+          client.validate_chain(blockchain)
+          client.blockchain = blockchain
           client.node_counter = len(client.blockchain.nodes)
-          client.log(termcolor.blue('Received id and blockchain from bootstrap node'))
-          # client.validate_chain()
 
           client.transaction_handler.start()
           client.block_handler.start()

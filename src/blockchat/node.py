@@ -17,6 +17,7 @@ import base64
 import random
 import uuid
 import re
+import hashlib
 
 from datetime import datetime
 from threading import Thread, Lock
@@ -762,9 +763,49 @@ class Node:
       self.blockchain.add_block(Block(**block))
 
       validator = next((node for node in self.blockchain.nodes if node['id'] == block['validator']), None)
-      validator['balance'] += self.past_fees.get()
+      credit = self.past_fees.get()
+      validator['balance'] += credit
+      self.log(termcolor.green(f'Node {block["validator"]} credited with {credit} BCC for mining block {block["index"]}'))
 
     self.log(termcolor.green(f'Block {block["index"]} registered successfully'))
+
+  def validate_chain(self, blockchain):
+    """Validates the blockchain.
+
+    This method validates the blockchain by checking if the blocks are valid
+    and if the transactions are valid.
+
+    Returns:
+      bool: True if the blockchain is valid, False otherwise.
+    """
+
+    self.log(termcolor.magenta('Validating blockchain'))
+
+    for i in range(1, len(blockchain.chain)):
+      previous_block = blockchain.chain[i-1]
+      current_block = blockchain.chain[i]
+
+      if current_block.index != i:
+        self.log(termcolor.red(f'Block {i} is invalid: Invalid index {current_block.index}'))
+        return False
+
+      if current_block.previous_hash != previous_block.hash:
+        self.log(termcolor.red(f'Block {current_block.index} is invalid: Invalid previous hash'))
+        return False
+
+      expected_hash = hashlib.sha256(json.dumps({
+        'index': current_block.index,
+        'validator': current_block.validator,
+        'transactions': [dict(transaction) for transaction in current_block.transactions],
+        'previous_hash': current_block.previous_hash,
+        'timestamp': current_block.timestamp,
+      }).encode()).hexdigest()
+      if current_block.hash != expected_hash:
+        self.log(termcolor.red(f'Block {current_block.index} is invalid: Invalid hash'))
+        return False
+
+    self.log(termcolor.green('Blockchain is valid'))
+    return True
 
 class Bootstrap(Node):
   def __init__(self, bootstrap_address, bootstrap_port, verbose, debug, blockchain, stake=0.0):
