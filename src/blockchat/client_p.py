@@ -26,7 +26,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
     debug (bool): Whether to enable debug mode.
   """
 
-  client = Node(verbose, debug)
+  client = Node(verbose, debug, 10.0)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -59,7 +59,8 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
     # Send the public key to the bootstrap node
     message = json.dumps({
       'message_type': 'key',
-      'key': client.wallet.get_address()
+      'key': client.wallet.get_address(),
+      'stake': 10.0
     })
     client.log(termcolor.magenta('Sending key to bootstrap node'))
     s.sendto(message.encode(), ('localhost', bootstrap_port))
@@ -94,6 +95,9 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
       else:
         client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
 
+    client.transaction_handler.start()
+    client.block_handler.start()
+
     # Receive initial coin transactions from bootstrap
     for i in range(nodes_count):
       while True:
@@ -110,7 +114,7 @@ def start_node(bootstrap_address, bootstrap_port, nodes_count, verbose, debug):
           client.receive_transaction(message['transaction'])
           break
 
-    client.set_stake(10)
+    client.test_messenger.start()
 
     # Listen for messages
     try:

@@ -32,7 +32,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
   blockchain = Blockchain(block_capacity)
   print(termcolor.red('[BOOTSTRAP]'), termcolor.blue('Blockchain created'))
 
-  bootstrap = Bootstrap(verbose, debug, blockchain)
+  bootstrap = Bootstrap(verbose, debug, blockchain, stake=10.0)
 
   colors = termcolor.colors
   bootstrap.node_color = colors.pop(0)
@@ -78,9 +78,10 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
       # Check if the message is a public-key message
       if message['message_type'] == 'key':
         key = message['key']
+        stake = message['stake']
         bootstrap.log(termcolor.blue(f'Received key {termcolor.underline(key[100:111])} from {termcolor.underline(f"{address}:{port}")}'))
 
-        bootstrap.add_node(node_id, address, port, key)
+        bootstrap.add_node(node_id, address, port, key, stake=stake)
 
     # Broadcast id and blockchain to all nodes
     for node in blockchain.nodes:
@@ -117,6 +118,10 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
       if node['id'] == 0:
         continue
       bootstrap.execute_transaction(node['id'], 'coins', 1000)
+
+    bootstrap.transaction_handler.start()
+    bootstrap.block_handler.start()
+    bootstrap.test_messenger.start()
 
     # Listen for messages
     try:
