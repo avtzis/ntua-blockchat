@@ -831,7 +831,7 @@ class Bootstrap(Node):
       self.wallet.get_address(),
       datetime.now().isoformat(),
       'coins',
-      1000 * (nodes_count + 1),
+      1000 * nodes_count,
       self.nonce,
       None
     )
@@ -877,7 +877,8 @@ class Bootstrap(Node):
       'message_type': 'activate',
       'id': node['id'],
       'color': color,
-      'blockchain': dict(self.blockchain)
+      'blockchain': dict(self.blockchain),
+      'current_block': [dict(transaction) for transaction in self.current_block],
     })
 
     self.log(termcolor.magenta(f'Activating node: {node["id"]}'))

@@ -9,6 +9,7 @@ import json
 
 from node import Node
 from blockchain import Blockchain
+from transaction import Transaction
 
 from util import termcolor
 
@@ -71,6 +72,7 @@ def start_node(nodes_count, block_capacity, bootstrap_address, bootstrap_port, v
           client.validate_chain(blockchain)
           client.blockchain = blockchain
           client.node_counter = len(client.blockchain.nodes)
+          client.current_block = [Transaction(**transaction) for transaction in message['current_block']]
 
           client.transaction_handler.start()
           client.block_handler.start()

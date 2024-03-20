@@ -8,6 +8,8 @@ import hashlib
 import json
 from datetime import datetime
 
+from transaction import Transaction
+
 class Block:
   """A class to represent a block in the blockchain.
 
@@ -38,7 +40,7 @@ class Block:
     self.index = index
     self.timestamp = datetime.now().isoformat() if timestamp is None else timestamp
     self.validator = validator
-    self.transactions = transactions
+    self.transactions = [Transaction(**dict(transaction)) for transaction in transactions]
     self.previous_hash = previous_hash
 
     self.hash = self.calculate_hash() if hash is None else hash
