@@ -832,11 +832,9 @@ class Bootstrap(Node):
       datetime.now().isoformat(),
       'coins',
       1000 * nodes_count,
-      self.nonce,
+      0,
       None
     )
-
-    self.nonce += 1
 
     genesis_block = Block(0, 0, [transaction], '1')
 
