@@ -56,6 +56,39 @@ class Blockchain:
 
     return self.chain[-1]
 
+  def get_state(self):
+    """Gets the balance and stake of each node in the network, by iterating
+    over all the transactions for every valid block in the blockchain.
+
+    Returns:
+      tuple: A tuple containing the state of the network and the fees from the
+      the last block.
+    """
+
+    state = {node: {'balance': 0, 'stake': 0} for node in self.nodes}
+
+    for block in self.chain:
+      fees = 0
+      for transaction in block.transactions:
+        sender = next(node for node in self.nodes if node['address'] == transaction['sender'])
+
+        # Handle each type of transaction (coins, message, stake)
+        if transaction['type'] == 'coins':
+          recipient = next(node for node in self.nodes if node['address'] == transaction['recipient'])
+
+          sender['balance'] -= (1 + self.fee_rate) * transaction['value']
+          recipient['balance'] += transaction['value']
+          fees += transaction['value'] * self.fee_rate
+
+        elif transaction['type'] == 'message':
+          sender['balance'] -= len(transaction['value'])
+          fees += len(transaction['value'])
+
+        elif transaction['type'] == 'stake':
+          sender['stake'] += transaction['value']
+
+    return state, fees
+
   def __str__(self):
     return str([str(block) for block in self.chain])
 

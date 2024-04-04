@@ -103,7 +103,6 @@ class Node:
     self.current_fees = 0
 
     self.past_blocks = Queue()
-    self.past_fees = Queue()
     self.past_pools = Queue()
 
     self.transaction_queue = Queue()
@@ -616,7 +615,6 @@ class Node:
     self.log(termcolor.blue(f'Node {validator_id} was picked as the validator for block {self.blockchain.block_index}'))
 
     # Save the current fees and transactions for easier block validation and registration
-    self.past_fees.put(self.current_fees)
     self.past_pools.put(entries)
 
     if validator_id == self.id:
@@ -757,15 +755,15 @@ class Node:
 
     self.log(termcolor.magenta(f'Registering block {block["index"]}'))
 
-    self.past_blocks.get()
-
     with self.blockchain_lock:
       self.blockchain.add_block(Block(**block))
+      self.nodes, credit = self.blockchain.get_state()
 
       validator = next((node for node in self.blockchain.nodes if node['id'] == block['validator']), None)
-      credit = self.past_fees.get()
       validator['balance'] += credit
       self.log(termcolor.green(f'Node {block["validator"]} credited with {credit} BCC for mining block {block["index"]}'))
+
+    self.past_blocks.get()
 
     self.log(termcolor.green(f'Block {block["index"]} registered successfully'))
 

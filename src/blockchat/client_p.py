@@ -43,12 +43,14 @@ def start_node(nodes_count, block_capacity, bootstrap_address, bootstrap_port, v
     # Send public-key to bootstrap to get an id
     client.send_key()
 
-    # Test messenger flag to start send test transactions
+    # Test messenger flag to start send prefixed test transactions
     test_flag = True
 
     # Listen for messages
     try:
       while True:
+        # Start the test messenger when the client has a positive balance and has
+        # received the blockchain from all nodes
         if test_flag and client.balance > 0 and client.node_counter == nodes_count:
           client.test_messenger.start()
           test_flag = False
