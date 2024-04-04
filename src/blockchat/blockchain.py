@@ -65,27 +65,30 @@ class Blockchain:
       the last block.
     """
 
-    state = {node: {'balance': 0, 'stake': 0} for node in self.nodes}
+    state = [{**node, 'balance': 0, 'stake': 0} for node in self.nodes]
 
     for block in self.chain:
       fees = 0
       for transaction in block.transactions:
-        sender = next(node for node in self.nodes if node['address'] == transaction['sender'])
+        sender = next((node for node in state if node['key'] == transaction.sender_address), None)
 
         # Handle each type of transaction (coins, message, stake)
-        if transaction['type'] == 'coins':
-          recipient = next(node for node in self.nodes if node['address'] == transaction['recipient'])
+        if transaction.type_of_transaction == 'coins':
+          recipient = next(node for node in state if node['key'] == transaction.receiver_address)
 
-          sender['balance'] -= (1 + self.fee_rate) * transaction['value']
-          recipient['balance'] += transaction['value']
-          fees += transaction['value'] * self.fee_rate
+          # Skip if genesis block
+          if sender is not None:
+            sender['balance'] -= (1.0 + self.fee_rate) * transaction.value
+            fees += transaction.value * self.fee_rate
 
-        elif transaction['type'] == 'message':
-          sender['balance'] -= len(transaction['value'])
-          fees += len(transaction['value'])
+          recipient['balance'] += transaction.value
 
-        elif transaction['type'] == 'stake':
-          sender['stake'] += transaction['value']
+        elif transaction.type_of_transaction == 'message':
+          sender['balance'] -= float(len(transaction.value))
+          fees += float(len(transaction.value))
+
+        elif transaction.type_of_transaction == 'stake':
+          sender['stake'] += transaction.value
 
     return state, fees
 

@@ -294,7 +294,7 @@ class Node:
         else:
           self.stake = value
       elif type_of_transaction == 'coins':
-        total_cost = (1 + self.blockchain.fee_rate) * value
+        total_cost = (1.0 + self.blockchain.fee_rate) * value
         if total_cost <= 0.0:
           self.log(termcolor.red(f'Execute: Invalid amount to transfer: {value}'))
           return False
@@ -493,7 +493,7 @@ class Node:
     # Check if the sender has enough balance to execute the transaction
     available_balance = sender['balance'] - sender['stake']
     if transaction['type_of_transaction'] == 'coins':
-      total_cost = (1 + self.blockchain.fee_rate) * transaction['value']
+      total_cost = (1.0 + self.blockchain.fee_rate) * transaction['value']
       if total_cost <= 0:
         self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid amount to transfer: {transaction["value"]}'))
         return False
@@ -564,7 +564,7 @@ class Node:
     # Update balances and stakes
     with self.blockchain_lock:
       if transaction['type_of_transaction'] == 'coins':
-        total_cost = (1 + self.blockchain.fee_rate) * transaction['value']
+        total_cost = (1.0 + self.blockchain.fee_rate) * transaction['value']
         sender['balance'] -= total_cost
         receiver['balance'] += transaction['value']
         self.current_fees += total_cost - transaction['value']
