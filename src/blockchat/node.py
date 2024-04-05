@@ -18,6 +18,7 @@ import random
 import uuid
 import re
 import hashlib
+import time
 
 from datetime import datetime
 from threading import Thread, Lock
@@ -244,6 +245,7 @@ class Node:
     try:
       with open(file_path, 'r') as f:
         for line in f:
+          time.sleep(random.uniform(0.1, 0.5))  #! simulate user input delay (fast), comment out for benchmarking
           match = pattern.match(line)
           if match:
             receiver_id = int(match.group(1))
