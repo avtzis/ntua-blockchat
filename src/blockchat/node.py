@@ -737,9 +737,21 @@ class Node:
       return False
 
     # Check if the validator of the block is valid
-    pool = self.past_pools.get()
-    if block['validator'] != self.get_validator_from_pool(pool, block['previous_hash']):
+    expected_validator = self.get_validator_from_pool(self.past_pools.get(), block['previous_hash'])
+    if block['validator'] != expected_validator:
       self.log(termcolor.red(f'Validate block {block["index"]}: Invalid validator'))
+      return False
+
+    # Check if the block has the expected hash
+    expected_hash = hashlib.sha256(json.dumps({
+      'index': self.blockchain.block_index,
+      'timestamp': block['timestamp'],
+      'validator': expected_validator,
+      'transactions': [dict(transaction) for transaction in block['transactions']],
+      'previous_hash': self.blockchain.get_last_block().hash,
+    }).encode()).hexdigest()
+    if block['hash'] != expected_hash:
+      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid hash'))
       return False
 
     self.log(termcolor.green(f'Block {block["index"]} validated successfully'))
@@ -782,20 +794,23 @@ class Node:
       previous_block = blockchain.chain[i-1]
       current_block = blockchain.chain[i]
 
+      # Check if the index of the block is valid
       if current_block.index != i:
         self.log(termcolor.red(f'Block {i} is invalid: Invalid index {current_block.index}'))
         return False
 
+      # Check if the previous hash of the block is valid
       if current_block.previous_hash != previous_block.hash:
         self.log(termcolor.red(f'Block {current_block.index} is invalid: Invalid previous hash'))
         return False
 
+      # Check if the block has the expected hash
       expected_hash = hashlib.sha256(json.dumps({
         'index': current_block.index,
+        'timestamp': current_block.timestamp,
         'validator': current_block.validator,
         'transactions': [dict(transaction) for transaction in current_block.transactions],
         'previous_hash': current_block.previous_hash,
-        'timestamp': current_block.timestamp,
       }).encode()).hexdigest()
       if current_block.hash != expected_hash:
         self.log(termcolor.red(f'Block {current_block.index} is invalid: Invalid hash'))
