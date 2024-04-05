@@ -489,6 +489,12 @@ class Node:
       self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Signature verification failed'))
       return False
 
+    # Check if the hash of the transaction is the expected one
+    expected_hash = hashlib.sha256(json.dumps({key: value for key, value in transaction.items() if key != 'hash'}).encode()).hexdigest()
+    if transaction['hash'] != expected_hash:
+      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid hash: {transaction["hash"]} != {expected_hash} (expected)'))
+      return False
+
     # Check if the sender has enough balance to execute the transaction
     available_balance = sender['balance'] - sender['stake']
     if transaction['type_of_transaction'] == 'coins':
@@ -530,7 +536,7 @@ class Node:
     """
 
     signature = base64.b64decode(transaction['signature'])
-    transaction_bytes = json.dumps({key: value for key, value in transaction.items() if key != 'signature'}).encode()
+    transaction_bytes = json.dumps({key: value for key, value in transaction.items() if key != 'signature' and key != 'hash'}).encode()
     public_key = serialization.load_pem_public_key(transaction['sender_address'].encode())
 
     try:
