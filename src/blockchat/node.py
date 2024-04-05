@@ -93,7 +93,6 @@ class Node:
 
     self.id = None
     self.wallet = Wallet()
-    self.balance = 0.0
     self.nonce = 0
     self.blockchain = None
     self.stake = stake
@@ -283,13 +282,13 @@ class Node:
 
     # Check if the transaction is valid and if the sender has enough balance
     with self.balance_lock:
-      available_balance = self.balance - self.stake
+      available_balance = self.wallet.balance - self.stake
       if type_of_transaction == 'stake':
         if value <= 0.0:
           self.log(termcolor.red(f'Execute: Invalid amount to stake: {value}'))
           return False
-        elif value > self.balance:
-          self.log(termcolor.red(f'Execute: Insufficient balance to stake: {self.balance} < {float(value)} (stake)'))
+        elif value > self.wallet.balance:
+          self.log(termcolor.red(f'Execute: Insufficient balance to stake: {self.wallet.balance} < {float(value)} (stake)'))
           return False
         else:
           self.stake = value
@@ -302,7 +301,7 @@ class Node:
           self.log(termcolor.red(f'Execute: Insufficient balance to transfer: {available_balance} < {total_cost} (transfer)'))
           return False
         else:
-          self.balance -= total_cost
+          self.wallet.balance -= total_cost
       elif type_of_transaction == 'message':
         if not isinstance(value, str):
           self.log(termcolor.red('Execute: Invalid message to send'))
@@ -311,7 +310,7 @@ class Node:
           self.log(termcolor.red(f'Execute: Insufficient balance to send message: {available_balance} < {float(len(value))} (message)'))
           return False
         else:
-          self.balance -= len(value)
+          self.wallet.balance -= len(value)
       else:
         self.log(termcolor.red(f'Execute: Invalid transaction type: {type_of_transaction}'))
         return False
@@ -571,7 +570,7 @@ class Node:
 
         with self.balance_lock:
           if receiver['id'] == self.id:
-            self.balance += transaction['value']
+            self.wallet.balance += transaction['value']
 
       elif transaction['type_of_transaction'] == 'message':
         sender['balance'] -= len(transaction['value'])
@@ -629,7 +628,7 @@ class Node:
       )
 
       with self.balance_lock:
-        self.balance += self.current_fees
+        self.wallet.balance += self.current_fees
 
       self.broadcast_block(new_block)
 
@@ -838,7 +837,7 @@ class Bootstrap(Node):
 
     self.blockchain.add_block(genesis_block)
 
-    self.balance += transaction.value
+    self.wallet.balance += transaction.value
 
     self.log(termcolor.blue('Genesis block created'))
 

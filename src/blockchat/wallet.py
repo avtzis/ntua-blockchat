@@ -22,6 +22,7 @@ class Wallet:
   def __init__(self):
     """Initializes a new instance of Wallet."""
 
+    self.balance = 0.0
     self.private_key, self.public_key = self.generate_key()
 
   @staticmethod

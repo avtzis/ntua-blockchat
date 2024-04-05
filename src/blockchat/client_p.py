@@ -51,7 +51,7 @@ def start_node(nodes_count, block_capacity, bootstrap_address, bootstrap_port, v
       while True:
         # Start the test messenger when the client has a positive balance and has
         # received the blockchain from all nodes
-        if test_flag and client.balance > 0 and client.node_counter == nodes_count:
+        if test_flag and client.wallet.balance > 0 and client.node_counter == nodes_count:
           client.test_messenger.start()
           test_flag = False
 

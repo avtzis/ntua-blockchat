@@ -40,7 +40,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
   color = itertools.cycle(colors)
 
   bootstrap.create_genesis_block(nodes_count)
-  bootstrap.add_node(0, bootstrap.wallet.get_address(), bootstrap_address, bootstrap_port, 10.0, bootstrap.nonce, bootstrap.balance)
+  bootstrap.add_node(0, bootstrap.wallet.get_address(), bootstrap_address, bootstrap_port, 10.0, bootstrap.nonce, bootstrap.wallet.balance)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
