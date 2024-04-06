@@ -99,6 +99,7 @@ class Node:
     self.blockchain = None
     self.stake = stake
     self.socket = None
+    self.history = ''
 
     self.current_block = []
     self.current_fees = 0
@@ -608,6 +609,9 @@ class Node:
       elif transaction['type_of_transaction'] == 'stake':
         sender['stake'] = transaction['value']
 
+    if sender['id'] == self.id or receiver is not None and receiver['id'] == self.id:
+      self.history += f'{transaction["uuid"]} {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}\n'
+
     self.log(termcolor.green(f'Transaction {termcolor.underline(transaction["uuid"])} registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}'), not self.debug)
 
     # Add the transaction to the current block and mine if the block is full
@@ -658,6 +662,8 @@ class Node:
 
       with self.balance_lock:
         self.wallet.balance += self.current_fees
+
+      self.history += f'Credited {self.current_fees} BCC for mining block {self.blockchain.block_index}\n'
 
       self.broadcast_block(new_block)
 
@@ -873,6 +879,7 @@ class Bootstrap(Node):
     self.blockchain.add_block(genesis_block)
 
     self.wallet.balance += transaction.value
+    self.history += f'Credited {transaction.value} BCC for genesis block\n'
 
     self.log(termcolor.blue('Genesis block created'))
 

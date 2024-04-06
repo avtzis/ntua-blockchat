@@ -87,13 +87,16 @@ def run(client, node_process_func, **kwargs):
           print('Usage: stake <value>')
           continue
 
-        client.set_stake(value)
+        client.set_stake(float(value))
 
       elif input.startswith('logs'):
         try:
           subprocess.run(['less', client.log_file], check=True)
         except subprocess.CalledProcessError:
           print('Failed to open logs')
+
+      elif input.startswith('history'):
+        print(client.history)
 
       else:
         print('Invalid command\n')
