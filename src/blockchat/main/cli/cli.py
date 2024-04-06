@@ -3,7 +3,8 @@ import subprocess
 from threading import Thread
 from queue import Queue
 
-from prompt_toolkit import prompt
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter
 
 help_message = """
 Available commands:
@@ -25,6 +26,9 @@ prompt_message = """
 Type 'help' to see the available commands."""
 
 def run(client, node_process_func, **kwargs):
+  session = PromptSession()
+  completer = WordCompleter(['transaction', 'stake', 'balance', 'view', 'help', 'exit', 'history', 'logs', 'message', 'coins'])
+
   print(welcome_message)
 
   ready_queue = Queue()
@@ -46,7 +50,7 @@ def run(client, node_process_func, **kwargs):
 
   while True:
     try:
-      input = prompt('\n>>> ')
+      input = session.prompt('\n>>> ', completer=completer, complete_while_typing=False, enable_history_search=True)
 
       if input == '':
         continue
@@ -64,10 +68,9 @@ def run(client, node_process_func, **kwargs):
         print(client.blockchain.get_last_block())
 
       elif input.startswith('transaction'):
-        _, node, type, value = input.split(' ', 3)
-
-        # Check if all arguments are provided
-        if not node or not type or not value:
+        try:
+          _, node, type, value = input.split(' ', 3)
+        except ValueError:
           print('Missing transaction arguments')
           print('Usage: transaction <node> <type> <value>')
           continue
@@ -79,10 +82,9 @@ def run(client, node_process_func, **kwargs):
         client.execute_transaction(node, type, value)
 
       elif input.startswith('stake'):
-        _, value = input.split(' ', 1)
-
-        # Check if all arguments are provided
-        if not value:
+        try:
+          _, value = input.split(' ', 1)
+        except ValueError:
           print('Missing stake amount')
           print('Usage: stake <value>')
           continue
