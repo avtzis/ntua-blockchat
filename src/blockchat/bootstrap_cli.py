@@ -3,7 +3,7 @@ from bootstrap_p import start_bootstrap
 from node import Bootstrap
 
 def main():
-  nodes = 4
+  nodes = 2
   capacity = 5
   address = '127.0.0.1'
   port = 5555

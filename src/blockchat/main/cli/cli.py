@@ -1,3 +1,5 @@
+import subprocess
+
 from threading import Thread
 from queue import Queue
 
@@ -11,7 +13,8 @@ Available commands:
   view: View last block
   help: Show this help text
   exit: Exit the client
-"""
+  history: Show transaction history
+  logs: Show logs"""
 
 welcome_message = """Welcome to BlockChat!
 
@@ -43,9 +46,12 @@ def run(client, node_process_func, **kwargs):
 
   while True:
     try:
-      input = prompt('>>> ')
+      input = prompt('\n>>> ')
 
-      if input.startswith('exit'):
+      if input == '':
+        continue
+
+      elif input.startswith('exit'):
         raise EOFError
 
       elif input.startswith('help'):
@@ -82,6 +88,12 @@ def run(client, node_process_func, **kwargs):
           continue
 
         client.set_stake(value)
+
+      elif input.startswith('logs'):
+        try:
+          subprocess.run(['less', client.log_file], check=True)
+        except subprocess.CalledProcessError:
+          print('Failed to open logs')
 
       else:
         print('Invalid command\n')
