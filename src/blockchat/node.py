@@ -99,7 +99,9 @@ class Node:
     self.blockchain = None
     self.stake = stake
     self.socket = None
+
     self.history = ''
+    self.log_file = None
 
     self.current_block = []
     self.current_fees = 0
@@ -122,20 +124,11 @@ class Node:
     self.transaction_handler.daemon = True
     self.block_handler.daemon = True
 
-    # Create a log file
-    if not debug:
-      self.log_file = f'logs-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.txt'
-      open(self.log_file, 'w').close()
+  def create_logfile(self):
+    """Creates a log file."""
 
-  def __del__(self):
-    """Closes the socket connection and deletes the log file when the object is deleted."""
-
-    print('Destructor called')
-
-    if self.socket:
-      self.socket.close()
-
-    self.delete_logfile()
+    self.log_file = f'logs-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.txt'
+    open(self.log_file, 'w').close()
 
   def delete_logfile(self):
     """Deletes the log file."""

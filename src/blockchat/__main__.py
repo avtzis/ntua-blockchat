@@ -3,6 +3,7 @@ import multiprocessing
 
 from bootstrap_p import start_bootstrap
 from client_p import start_node
+from node import Node, Bootstrap
 
 from util import termcolor
 
@@ -25,9 +26,10 @@ def main():
 
   try:
     # Start the bootstrap process
+    bootstrap = Bootstrap(address, port, verbose, debug, stake=10.0)
     bootstrap_process = multiprocessing.Process(
       target=start_bootstrap,
-      args=(nodes, capacity, address, port, verbose, debug)
+      args=(nodes, capacity, bootstrap, None, True)
     )
     processes = [bootstrap_process]
     print(termcolor.bold('[INIT]'), termcolor.magenta('Starting bootstrap process'))
@@ -35,9 +37,10 @@ def main():
 
     # Start the client processes
     for i in range(nodes - 1):
+      node = Node(address, port, verbose, debug, stake=10.0)
       node_process = multiprocessing.Process(
         target=start_node,
-        args=(nodes, capacity, address, port, verbose, debug)
+        args=(nodes, capacity, node, None, True)
       )
       processes.append(node_process)
       print(termcolor.bold('[INIT]'), termcolor.magenta(f'Starting client process {i}'))

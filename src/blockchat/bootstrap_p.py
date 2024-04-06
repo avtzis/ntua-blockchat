@@ -8,12 +8,11 @@ import socket
 import json
 import itertools
 
-# from node import Bootstrap
 from blockchain import Blockchain
 
 from util import termcolor
 
-def start_bootstrap(nodes_count, block_capacity, bootstrap, ready_queue):
+def start_bootstrap(nodes_count, block_capacity, bootstrap, ready_queue=None, test_flag=False):
   """Starts the bootstrap process of the network.
 
   This function starts the bootstrap process of the network, which is used to
@@ -82,8 +81,12 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap, ready_queue):
             # Start the test messenger when all nodes have connected
             if bootstrap.node_counter == nodes_count:
               bootstrap.log(termcolor.green('All nodes connected'))
-              # bootstrap.test_messenger.start()
-              ready_queue.put('ready')
+
+              if ready_queue:
+                ready_queue.put('ready')
+
+              if test_flag:
+                bootstrap.test_messenger.start()
 
         elif message['message_type'] == 'transaction':
           bootstrap.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (transaction)'), not bootstrap.debug)

@@ -13,7 +13,7 @@ from transaction import Transaction
 
 from util import termcolor
 
-def start_node(nodes_count, block_capacity, client, ready_queue):
+def start_node(nodes_count, block_capacity, client, ready_queue=None, test_flag=False):
   """Starts a client process.
 
   This function starts a client process, which is used to connect to the network
@@ -42,32 +42,29 @@ def start_node(nodes_count, block_capacity, client, ready_queue):
       client.log(termcolor.yellow('Connection could not be established with bootstrap node'))
       client.log(termcolor.blue('Process terminated by user'))
       s.close()
-      client.delete_logfile()
       return
 
     # Send public-key to bootstrap to get an id
     client.send_key()
 
-    # Test messenger flag to start send prefixed test transactions
-    test_flag = False
-
-    ready_flag = False
+    # Flag to signal when the client is ready
+    ready_flag = True
 
     # Listen for messages
     try:
       while True:
-        # Start the test messenger when the client has a positive balance and has
-        # received the blockchain from all nodes
-        if test_flag and client.wallet.balance > 0 and client.node_counter == nodes_count:
-          client.test_messenger.start()
-          test_flag = False
-
-        # Signal ready to CLI
-        if client.node_counter == nodes_count and not ready_flag:
-          ready_flag = True
+        # Signal ready to CLI or start the test messenger
+        if ready_flag and client.node_counter == nodes_count:
+          ready_flag = False
           client.log(termcolor.green('All nodes connected'))
           client.log(termcolor.blue('Ready to send transactions'))
-          ready_queue.put('ready')
+
+          if ready_queue:
+            ready_queue.put('ready')
+
+          if test_flag:
+            client.test_messenger.start()
+
           time.sleep(0.01)
 
         message, (address, port) = s.recvfrom(4096*block_capacity)
@@ -113,5 +110,4 @@ def start_node(nodes_count, block_capacity, client, ready_queue):
       # Terminate the process if the user interrupts it
       client.log(termcolor.blue('Process terminated by user'))
       s.close()
-      client.delete_logfile()
       return

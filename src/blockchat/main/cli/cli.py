@@ -29,6 +29,8 @@ def run(client, node_process_func, **kwargs):
   session = PromptSession()
   completer = WordCompleter(['transaction', 'stake', 'balance', 'view', 'help', 'exit', 'history', 'logs', 'message', 'coins'])
 
+  client.create_logfile()
+
   print(welcome_message)
 
   ready_queue = Queue()
