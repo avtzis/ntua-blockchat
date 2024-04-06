@@ -8,13 +8,11 @@ import socket
 import json
 import time
 
-# from node import Node
 from blockchain import Blockchain
 from transaction import Transaction
 
 from util import termcolor
 
-# def start_node(nodes_count, block_capacity, bootstrap_address, bootstrap_port, verbose, debug):
 def start_node(nodes_count, block_capacity, client, ready_queue):
   """Starts a client process.
 
@@ -28,8 +26,6 @@ def start_node(nodes_count, block_capacity, client, ready_queue):
     verbose (bool): Whether to enable verbose mode.
     debug (bool): Whether to enable debug mode.
   """
-
-  # client = Node(bootstrap_address, bootstrap_port, verbose, debug, 10.0)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:

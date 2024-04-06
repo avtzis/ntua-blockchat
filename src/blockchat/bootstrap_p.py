@@ -8,12 +8,12 @@ import socket
 import json
 import itertools
 
-from node import Bootstrap
+# from node import Bootstrap
 from blockchain import Blockchain
 
 from util import termcolor
 
-def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_port, verbose, debug):
+def start_bootstrap(nodes_count, block_capacity, bootstrap, ready_queue):
   """Starts the bootstrap process of the network.
 
   This function starts the bootstrap process of the network, which is used to
@@ -29,15 +29,16 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
     debug (bool): Whether to enable debug mode.
   """
 
-  blockchain = Blockchain(block_capacity)
-  print(termcolor.red('[BOOTSTRAP]'), termcolor.blue('Blockchain created'))
-
-  bootstrap = Bootstrap(bootstrap_address, bootstrap_port, verbose, debug, blockchain, stake=10.0)
-
   # Get an output color for each node
   colors = termcolor.colors
   bootstrap.node_color = colors.pop(0)
   color = itertools.cycle(colors)
+
+  blockchain = Blockchain(block_capacity)
+  bootstrap.blockchain = blockchain
+  bootstrap.log(termcolor.blue('Blockchain created'))
+
+  bootstrap_address, bootstrap_port = bootstrap.bootstrap_address, bootstrap.bootstrap_port
 
   bootstrap.create_genesis_block(nodes_count)
   bootstrap.add_node(0, bootstrap.wallet.get_address(), bootstrap_address, bootstrap_port, 10.0, bootstrap.nonce, bootstrap.wallet.balance)
@@ -60,7 +61,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
         try:
           message = json.loads(message.decode())
         except json.JSONDecodeError:
-          bootstrap.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
+          bootstrap.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'), not bootstrap.debug)
           continue
 
         if message['message_type'] == 'ping':
@@ -71,7 +72,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
           bootstrap.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (key)'))
 
           if bootstrap.node_counter >= nodes_count:
-            bootstrap.log(termcolor.yellow('Node limit reached'))
+            bootstrap.log(termcolor.yellow('Node limit reached'), not bootstrap.debug)
           else:
             new_node = bootstrap.add_node(bootstrap.node_counter, message['key'], address, port, message['stake'])
             bootstrap.activate_node(new_node, next(color))
@@ -82,17 +83,18 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
             if bootstrap.node_counter == nodes_count:
               bootstrap.log(termcolor.green('All nodes connected'))
               # bootstrap.test_messenger.start()
+              ready_queue.put('ready')
 
         elif message['message_type'] == 'transaction':
-          bootstrap.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (transaction)'))
+          bootstrap.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (transaction)'), not bootstrap.debug)
           bootstrap.receive_transaction(message['transaction'])
 
         elif message['message_type'] == 'block':
-          bootstrap.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (block)'))
+          bootstrap.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (block)'), not bootstrap.debug)
           bootstrap.receive_block(message['block'])
 
         else:
-          bootstrap.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
+          bootstrap.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'), not bootstrap.debug)
     except KeyboardInterrupt:
       # Terminate the process if the user interrupts it
       bootstrap.log(termcolor.blue('Process terminated by user'))

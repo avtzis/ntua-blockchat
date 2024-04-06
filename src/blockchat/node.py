@@ -840,7 +840,7 @@ class Node:
     return True
 
 class Bootstrap(Node):
-  def __init__(self, bootstrap_address, bootstrap_port, verbose, debug, blockchain, stake=0.0):
+  def __init__(self, bootstrap_address, bootstrap_port, verbose, debug, blockchain=None, stake=0.0):
     super().__init__(bootstrap_address, bootstrap_port, verbose, debug, stake)
 
     self.blockchain = blockchain
