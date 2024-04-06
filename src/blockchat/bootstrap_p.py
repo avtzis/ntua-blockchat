@@ -78,9 +78,10 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap_address, bootstrap_po
             bootstrap.broadcast_node(new_node)
             bootstrap.execute_transaction(new_node['id'], 'coins', 1000.0)
 
+            # Start the test messenger when all nodes have connected
             if bootstrap.node_counter == nodes_count:
               bootstrap.log(termcolor.green('All nodes connected'))
-              bootstrap.test_messenger.start()
+              # bootstrap.test_messenger.start()
 
         elif message['message_type'] == 'transaction':
           bootstrap.log(termcolor.blue(f'Received message from {termcolor.underline(f"{address}:{port}")} (transaction)'))

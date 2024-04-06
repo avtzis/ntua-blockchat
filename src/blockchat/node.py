@@ -19,6 +19,7 @@ import uuid
 import re
 import hashlib
 import time
+import os
 
 from datetime import datetime
 from threading import Thread, Lock
@@ -77,7 +78,7 @@ class Node:
     register_block: Register a block in the blockchain.
   """
 
-  def __init__(self, bootstrap_address, bootstrap_port, verbose, debug, stake=0.0):
+  def __init__(self, bootstrap_address, bootstrap_port, verbose=True, debug=False, stake=0.0):
     """Initializes a new instance of Node.
 
     Args:
@@ -115,25 +116,52 @@ class Node:
     self.transaction_handler = Thread(target=self.handle_transactions)
     self.block_handler = Thread(target=self.handle_blocks)
 
+    # Set threads as daemons
     self.test_messenger.daemon = True
     self.transaction_handler.daemon = True
     self.block_handler.daemon = True
 
-  def log(self, message):
+    # Create a log file
+    if not debug:
+      self.log_file = f'logs-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.txt'
+      open(self.log_file, 'w').close()
+
+  def __del__(self):
+    """Closes the socket connection and deletes the log file when the object is deleted."""
+
+    print('Destructor called')
+
+    if self.socket:
+      self.socket.close()
+
+    self.delete_logfile()
+
+  def delete_logfile(self):
+    """Deletes the log file."""
+
+    try:
+      os.remove(self.log_file)
+    except FileNotFoundError:
+      pass
+
+  def log(self, message, is_log=False):
     """Log a message to the console setting a colored prefix for node identification.
 
     Args:
       message (str): The message.
     """
 
-    if self.verbose:
-      if self.id is None or self.debug or self.id <= 0:
-        if self.id == 0:
-          print(f'{self.colorize("[BOOTSTRAP]")} {message}')
-        elif self.id is None:
-          print(f'{self.colorize("[NODE]")} {message}')
-        else:
-          print(f'{self.colorize(f"[NODE-{self.id}]")} {message}')
+    if is_log:
+      with open(self.log_file, 'a') as f:
+        f.write(f'[{datetime.now().isoformat()}] {message}\n')
+
+    elif self.verbose:
+      if self.id == 0:
+        print(f'{self.colorize("[BOOTSTRAP]")} {message}')
+      elif self.id is None:
+        print(f'{self.colorize("[NODE]")} {message}')
+      else:
+        print(f'{self.colorize(f"[NODE-{self.id}]")} {message}')
 
   def colorize(self, message):
     """Colorize a message based on node_color.
@@ -215,7 +243,7 @@ class Node:
     }
     self.blockchain.nodes.append(new_node)
     self.node_counter += 1
-    self.log(termcolor.blue(f'Added node {new_node["id"]}'))
+    self.log(termcolor.blue(f'Added node {new_node["id"]}'), not self.debug)
 
     return new_node
 
@@ -413,15 +441,8 @@ class Node:
       bool: True if the transaction was received and handled successfully, False otherwise.
     """
 
-    self.log(termcolor.blue(f'Received transaction {termcolor.underline(transaction["uuid"])}'))
+    self.log(termcolor.blue(f'Received transaction {termcolor.underline(transaction["uuid"])}'), not self.debug)
     self.transaction_queue.put(transaction)
-
-    # if not self.validate_transaction(transaction):
-    #   self.log(termcolor.yellow(f'Transaction {termcolor.underline(transaction["uuid"])} is invalid'))
-    #   return False
-
-    # self.register_transaction(transaction)
-    # return True
 
   def handle_transactions(self):
     """Handles transactions from the transaction queue."""
@@ -429,7 +450,7 @@ class Node:
     while True:
       transaction = self.transaction_queue.get()
       if not self.validate_transaction(transaction):
-        self.log(termcolor.yellow(f'Transaction {termcolor.underline(transaction["uuid"])} is invalid'))
+        self.log(termcolor.yellow(f'Transaction {termcolor.underline(transaction["uuid"])} is invalid'), not self.debug)
         continue
 
       self.register_transaction(transaction)
@@ -453,19 +474,19 @@ class Node:
       bool: True if the transaction is valid, False otherwise.
     """
 
-    self.log(termcolor.magenta(f'Validating transaction {termcolor.underline(transaction["uuid"])}'))
+    self.log(termcolor.magenta(f'Validating transaction {termcolor.underline(transaction["uuid"])}'), not self.debug)
 
     # Check if the transaction has all the required keys
     required_keys = ['uuid', 'sender_address', 'receiver_address', 'timestamp', 'type_of_transaction', 'value', 'nonce', 'signature']
     if not all(key in transaction for key in required_keys):
-      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid transaction format'))
+      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid transaction format'), not self.debug)
       return False
 
     # Check if the sender and receiver addresses are valid
     sender_key, receiver_key = transaction['sender_address'], transaction['receiver_address']
     sender = next((node for node in self.blockchain.nodes if node['key'] == sender_key), None)
     if not sender:
-      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid sender: {sender_key}'))
+      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid sender: {sender_key}'), not self.debug)
       return False
     else:
       with self.blockchain_lock:
@@ -473,28 +494,28 @@ class Node:
 
     receiver = 'stake_receiver' if receiver_key == '0' and transaction['type_of_transaction'] == 'stake' else next((node for node in self.blockchain.nodes if node['key'] == receiver_key), None)
     if not receiver:
-      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid receiver: {receiver_key}'))
+      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid receiver: {receiver_key}'), not self.debug)
       return False
 
     # Check if the type of the transaction is valid
     if transaction['type_of_transaction'] not in ['coins', 'message', 'stake']:
-      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid transaction type: {transaction["type_of_transaction"]}'))
+      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid transaction type: {transaction["type_of_transaction"]}'), not self.debug)
       return False
 
     # Check if the nonce of the sender is valid
     if transaction['nonce'] != sender['nonce'] - 1:
-      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid nonce: {transaction["nonce"]} != {sender["nonce"] - 1} (expected)'))
+      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid nonce: {transaction["nonce"]} != {sender["nonce"] - 1} (expected)'), not self.debug)
       return False
 
     # Check if the signature of the transaction is valid
     if not self.verify_signature(transaction):
-      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Signature verification failed'))
+      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Signature verification failed'), not self.debug)
       return False
 
     # Check if the hash of the transaction is the expected one
     expected_hash = hashlib.sha256(json.dumps({key: value for key, value in transaction.items() if key != 'hash'}).encode()).hexdigest()
     if transaction['hash'] != expected_hash:
-      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid hash: {transaction["hash"]} != {expected_hash} (expected)'))
+      self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid hash: {transaction["hash"]} != {expected_hash} (expected)'), not self.debug)
       return False
 
     # Check if the sender has enough balance to execute the transaction
@@ -502,27 +523,27 @@ class Node:
     if transaction['type_of_transaction'] == 'coins':
       total_cost = (1.0 + self.blockchain.fee_rate) * transaction['value']
       if total_cost <= 0:
-        self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid amount to transfer: {transaction["value"]}'))
+        self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid amount to transfer: {transaction["value"]}'), not self.debug)
         return False
       if available_balance < total_cost:
-        self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Insufficient balance: {available_balance} < {total_cost}'))
+        self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Insufficient balance: {available_balance} < {total_cost}'), not self.debug)
         return False
     elif transaction['type_of_transaction'] == 'message':
       if not isinstance(transaction['value'], str):
         self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid message'))
         return False
       if available_balance < len(transaction['value']):
-        self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Insufficient balance: {available_balance} < {float(len(transaction["value"]))}'))
+        self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Insufficient balance: {available_balance} < {float(len(transaction["value"]))}')), not self.debug
         return False
     elif transaction['type_of_transaction'] == 'stake':
       if transaction['value'] <= 0:
         self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Invalid amount to stake: {transaction["value"]}'))
         return False
       if transaction['value'] > sender['balance']:
-        self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Insufficient balance: {sender["balance"]} < {transaction["value"]}'))
+        self.log(termcolor.red(f'Validate transaction {termcolor.underline(transaction["uuid"])}: Insufficient balance: {sender["balance"]} < {transaction["value"]}'), not self.debug)
         return False
 
-    self.log(termcolor.green(f'Transaction {termcolor.underline(transaction["uuid"])} validated successfully'))
+    self.log(termcolor.green(f'Transaction {termcolor.underline(transaction["uuid"])} validated successfully'), not self.debug)
     return True
 
   def verify_signature(self, transaction):
@@ -553,7 +574,7 @@ class Node:
       )
       return True
     except Exception:
-      self.log(termcolor.red(f'Verify transaction {termcolor.underline(transaction["uuid"])}: Signature verification failed'))
+      self.log(termcolor.red(f'Verify transaction {termcolor.underline(transaction["uuid"])}: Signature verification failed'), not self.debug)
       return False
 
   def register_transaction(self, transaction):
@@ -563,7 +584,7 @@ class Node:
       transaction (dict): The transaction.
     """
 
-    self.log(termcolor.magenta(f'Registering transaction {termcolor.underline(transaction["uuid"])}'))
+    self.log(termcolor.magenta(f'Registering transaction {termcolor.underline(transaction["uuid"])}'), not self.debug)
 
     sender = next((node for node in self.blockchain.nodes if node['key'] == transaction['sender_address']), None)
     receiver = next((node for node in self.blockchain.nodes if node['key'] == transaction['receiver_address']), None)
@@ -587,7 +608,7 @@ class Node:
       elif transaction['type_of_transaction'] == 'stake':
         sender['stake'] = transaction['value']
 
-    self.log(termcolor.green(f'Transaction {termcolor.underline(transaction["uuid"])} registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}'))
+    self.log(termcolor.green(f'Transaction {termcolor.underline(transaction["uuid"])} registered successfully: {sender["id"]} -> {receiver["id"] if receiver is not None else "none"}, {transaction["type_of_transaction"]}: {transaction["value"]}'), not self.debug)
 
     # Add the transaction to the current block and mine if the block is full
     self.current_block.append(Transaction(**transaction))
@@ -596,7 +617,7 @@ class Node:
       current_block_copy = self.current_block.copy()
       self.current_block = []
 
-      self.log(termcolor.blue('Reached block capacity. Starting mining process'))
+      self.log(termcolor.blue('Reached block capacity. Starting mining process'), not self.debug)
       self.mine_block(current_block_copy)
 
   def mine_block(self, current_block):
@@ -619,13 +640,13 @@ class Node:
     seed = self.blockchain.get_last_block().hash
 
     validator_id = self.get_validator_from_pool(entries, seed)
-    self.log(termcolor.blue(f'Node {validator_id} was picked as the validator for block {self.blockchain.block_index}'))
+    self.log(termcolor.blue(f'Node {validator_id} was picked as the validator for block {self.blockchain.block_index}'), not self.debug)
 
     # Save the current fees and transactions for easier block validation and registration
     self.past_pools.put(entries)
 
     if validator_id == self.id:
-      self.log(termcolor.magenta('Mining block'))
+      self.log(termcolor.magenta('Mining block'), not self.debug)
 
       transactions = sorted(current_block, key=lambda transaction: transaction.timestamp)
       new_block = Block(
@@ -676,7 +697,7 @@ class Node:
       'block': dict(block)
     })
 
-    self.log(termcolor.magenta(f'Broadcasting new block: {block.index}'))
+    self.log(termcolor.magenta(f'Broadcasting new block: {block.index}'), not self.debug)
     for node in self.blockchain.nodes:
       self.send(message, node['address'], node['port'])
 
@@ -693,17 +714,8 @@ class Node:
       bool: True if the block was received and handled successfully, False otherwise.
     """
 
-    self.log(termcolor.blue(f'Received block {block["index"]}'))
+    self.log(termcolor.blue(f'Received block {block["index"]}'), not self.debug)
     self.block_queue.put(block)
-
-    # Validate the block
-    # if not self.validate_block(block):
-    #   self.log(termcolor.yellow(f'Block {block["index"]} is invalid'))
-    #   return False
-
-    # self.register_block(block)
-
-    # return
 
   def handle_blocks(self):
     """Handles blocks from the block queue."""
@@ -711,7 +723,7 @@ class Node:
     while True:
       block = self.block_queue.get()
       if not self.validate_block(block):
-        self.log(termcolor.yellow(f'Block {block["index"]} is invalid'))
+        self.log(termcolor.yellow(f'Block {block["index"]} is invalid'), not self.debug)
         continue
 
       self.register_block(block)
@@ -731,23 +743,23 @@ class Node:
       bool: True if the block is valid, False otherwise.
     """
 
-    self.log(termcolor.magenta(f'Validating block {block["index"]}'))
+    self.log(termcolor.magenta(f'Validating block {block["index"]}'), not self.debug)
 
     # Check if the block has all the required keys
     required_keys = ['index', 'validator', 'transactions', 'previous_hash', 'timestamp', 'hash']
     if not all(key in block for key in required_keys):
-      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid block format'))
+      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid block format'), not self.debug)
       return False
 
     # Check if the previous hash of the block is valid
     if block['previous_hash'] != self.blockchain.get_last_block().hash:
-      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid previous hash'))
+      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid previous hash'), not self.debug)
       return False
 
     # Check if the validator of the block is valid
     expected_validator = self.get_validator_from_pool(self.past_pools.get(), block['previous_hash'])
     if block['validator'] != expected_validator:
-      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid validator'))
+      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid validator'), not self.debug)
       return False
 
     # Check if the block has the expected hash
@@ -759,10 +771,10 @@ class Node:
       'previous_hash': self.blockchain.get_last_block().hash,
     }).encode()).hexdigest()
     if block['hash'] != expected_hash:
-      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid hash'))
+      self.log(termcolor.red(f'Validate block {block["index"]}: Invalid hash'), not self.debug)
       return False
 
-    self.log(termcolor.green(f'Block {block["index"]} validated successfully'))
+    self.log(termcolor.green(f'Block {block["index"]} validated successfully'), not self.debug)
     return True
 
   def register_block(self, block):
@@ -772,7 +784,7 @@ class Node:
       block (dict): The block.
     """
 
-    self.log(termcolor.magenta(f'Registering block {block["index"]}'))
+    self.log(termcolor.magenta(f'Registering block {block["index"]}'), not self.debug)
 
     with self.blockchain_lock:
       self.blockchain.add_block(Block(**block))
@@ -780,11 +792,11 @@ class Node:
 
       validator = next((node for node in self.blockchain.nodes if node['id'] == block['validator']), None)
       validator['balance'] += credit
-      self.log(termcolor.green(f'Node {block["validator"]} credited with {credit} BCC for mining block {block["index"]}'))
+      self.log(termcolor.green(f'Node {block["validator"]} credited with {credit} BCC for mining block {block["index"]}'), not self.debug)
 
     self.past_blocks.get()
 
-    self.log(termcolor.green(f'Block {block["index"]} registered successfully'))
+    self.log(termcolor.green(f'Block {block["index"]} registered successfully'), not self.debug)
 
   def validate_chain(self, blockchain):
     """Validates the blockchain.
@@ -879,7 +891,7 @@ class Bootstrap(Node):
       'node': new_node
     })
 
-    self.log(termcolor.magenta(f'Broadcasting new node: {new_node["id"]}'))
+    self.log(termcolor.magenta(f'Broadcasting new node: {new_node["id"]}'), not self.debug)
     for node in self.blockchain.nodes:
       if node['id'] != new_node['id'] and node['id'] != 0:
         self.send(message, node['address'], node['port'])
@@ -899,5 +911,5 @@ class Bootstrap(Node):
       'current_block': [dict(transaction) for transaction in self.current_block],
     })
 
-    self.log(termcolor.magenta(f'Activating node: {node["id"]}'))
+    self.log(termcolor.magenta(f'Activating node: {node["id"]}'), not self.debug)
     self.send(message, node['address'], node['port'])
