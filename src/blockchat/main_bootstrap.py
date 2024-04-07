@@ -1,5 +1,5 @@
 from main.cli import cli
-from bootstrap_p import start_bootstrap
+from bootstrap import start_bootstrap
 from node import Bootstrap
 
 def main():

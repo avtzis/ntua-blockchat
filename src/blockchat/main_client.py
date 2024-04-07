@@ -1,5 +1,5 @@
 from main.cli import cli
-from client_p import start_node
+from client import start_node
 from node import Node
 
 def main():

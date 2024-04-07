@@ -13,7 +13,7 @@ from transaction import Transaction
 
 from util import termcolor
 
-def start_node(nodes_count, block_capacity, client, ready_queue=None, test_flag=False):
+def start_node(nodes_count, block_capacity, client, ready_queue=None, test_flag=False, port=0):
   """Starts a client process.
 
   This function starts a client process, which is used to connect to the network
@@ -30,7 +30,7 @@ def start_node(nodes_count, block_capacity, client, ready_queue=None, test_flag=
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
     # Bind to a random port
-    s.bind(('127.0.0.1', 0))
+    s.bind(('0.0.0.0', port))
     address, port = s.getsockname()
     client.socket = s
     client.log(termcolor.blue(f'Client node listening on {termcolor.underline(f"{address}:{port}")}'))
@@ -62,10 +62,10 @@ def start_node(nodes_count, block_capacity, client, ready_queue=None, test_flag=
           if ready_queue:
             ready_queue.put('ready')
 
+          time.sleep(0.1)
+
           if test_flag:
             client.test_messenger.start()
-
-          time.sleep(0.01)
 
         message, (address, port) = s.recvfrom(4096*block_capacity)
 
@@ -105,7 +105,7 @@ def start_node(nodes_count, block_capacity, client, ready_queue=None, test_flag=
           client.receive_block(message['block'])
 
         else:
-          client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")}'))
+          client.log(termcolor.yellow(f'Invalid message received from {termcolor.underline(f"{address}:{port}")} (type: {message["message_type"]})'), not client.debug)
     except KeyboardInterrupt:
       # Terminate the process if the user interrupts it
       client.log(termcolor.blue('Process terminated by user'))

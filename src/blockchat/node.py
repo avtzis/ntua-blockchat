@@ -78,7 +78,7 @@ class Node:
     register_block: Register a block in the blockchain.
   """
 
-  def __init__(self, bootstrap_address, bootstrap_port, verbose=True, debug=False, stake=0.0):
+  def __init__(self, bootstrap_address='127.0.0.1', bootstrap_port=5000, verbose=True, debug=False, stake=0.0):
     """Initializes a new instance of Node.
 
     Args:
@@ -186,6 +186,8 @@ class Node:
       address (str): The address of the node.
       port (int): The port of the node.
     """
+    print('type of bootstrap_address:', type(self.bootstrap_address))
+    print('type of bootstrap_port:', type(self.bootstrap_port))
     self.socket.settimeout(0.1)
     while True:
       try:
@@ -193,7 +195,9 @@ class Node:
         self.send(json.dumps({'message_type': 'ping'}), self.bootstrap_address, self.bootstrap_port)
         message, (address, port) = self.socket.recvfrom(1024)
 
-        if message == b'pong' and address == self.bootstrap_address and port == self.bootstrap_port:
+        if message == b'pong':  # and address == self.bootstrap_address and port == self.bootstrap_port:
+          self.bootstrap_address = address
+          # self.bootstrap_port = port
           break
 
       except timeout:
@@ -263,6 +267,7 @@ class Node:
 
     pattern = re.compile(r'id(\d+)\s+(.*)')
     file_path = f'input/trans{self.id}.txt'
+    test_file_path = f'tests/input/trans{self.id}.txt'
 
     try:
       with open(file_path, 'r') as f:
@@ -277,6 +282,21 @@ class Node:
               self.execute_transaction(receiver_id, 'message', message)
     except FileNotFoundError:
       self.log(termcolor.red(f'File not found: {file_path}'))
+      try:
+        with open(test_file_path, 'r') as f:
+          for line in f:
+            time.sleep(random.uniform(0.1, 0.5))  #! simulate user input delay (fast), comment out for benchmarking
+            match = pattern.match(line)
+            if match:
+              receiver_id = int(match.group(1))
+              message = match.group(2)
+
+              if receiver_id < len(self.blockchain.nodes):
+                self.execute_transaction(receiver_id, 'message', message)
+      except FileNotFoundError:
+        self.log(termcolor.red(f'File not found: {test_file_path}'))
+      except IOError:
+        self.log(termcolor.red(f'Error reading file: {test_file_path}'))
     except IOError:
       self.log(termcolor.red(f'Error reading file: {file_path}'))
 
@@ -839,7 +859,7 @@ class Node:
     return True
 
 class Bootstrap(Node):
-  def __init__(self, bootstrap_address, bootstrap_port, verbose, debug, blockchain=None, stake=0.0):
+  def __init__(self, bootstrap_address='127.0.0.1', bootstrap_port=5000, verbose=True, debug=False, blockchain=None, stake=0.0):
     super().__init__(bootstrap_address, bootstrap_port, verbose, debug, stake)
 
     self.blockchain = blockchain

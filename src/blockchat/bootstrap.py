@@ -44,9 +44,10 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap, ready_queue=None, te
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-    s.bind((bootstrap_address, bootstrap_port))
+    s.bind(('0.0.0.0', bootstrap_port))
+    address, port = s.getsockname()
     bootstrap.socket = s
-    bootstrap.log(termcolor.blue(f'Listening on {termcolor.underline(f"{bootstrap_address}:{bootstrap_port}")}'))
+    bootstrap.log(termcolor.blue(f'Listening on {termcolor.underline(f"{address}:{port}")}'))
 
     bootstrap.transaction_handler.start()
     bootstrap.block_handler.start()
