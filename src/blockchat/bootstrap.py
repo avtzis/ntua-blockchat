@@ -8,9 +8,9 @@ import socket
 import json
 import itertools
 
-from blockchain import Blockchain
+from blockchat.blockchain import Blockchain
 
-from util import termcolor
+from blockchat.util import termcolor
 
 def start_bootstrap(nodes_count, block_capacity, bootstrap, ready_queue=None, test_flag=False):
   """Starts the bootstrap process of the network.

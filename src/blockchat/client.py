@@ -8,10 +8,10 @@ import socket
 import json
 import time
 
-from blockchain import Blockchain
-from transaction import Transaction
+from blockchat.blockchain import Blockchain
+from blockchat.transaction import Transaction
 
-from util import termcolor
+from blockchat.util import termcolor
 
 def start_node(nodes_count, block_capacity, client, ready_queue=None, test_flag=False, port=0):
   """Starts a client process.

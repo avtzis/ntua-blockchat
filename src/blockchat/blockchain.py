@@ -4,7 +4,7 @@ This module contains the Blockchain class, which is used to represent the
 blockchain of the network.
 """
 
-from block import Block
+from blockchat.block import Block
 
 class Blockchain:
   """A class to represent the blockchain of the network.

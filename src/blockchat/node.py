@@ -30,11 +30,11 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 
-from wallet import Wallet
-from block import Block
-from transaction import Transaction
+from blockchat.wallet import Wallet
+from blockchat.block import Block
+from blockchat.transaction import Transaction
 
-from util import termcolor
+from blockchat.util import termcolor
 
 class Node:
   """A class to represent a node in the blockchain network.

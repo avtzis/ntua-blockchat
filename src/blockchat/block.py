@@ -8,7 +8,7 @@ import hashlib
 import json
 from datetime import datetime
 
-from transaction import Transaction
+from blockchat.transaction import Transaction
 
 class Block:
   """A class to represent a block in the blockchain.
