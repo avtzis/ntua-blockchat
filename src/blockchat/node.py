@@ -145,7 +145,7 @@ class Node:
       message (str): The message.
     """
 
-    if is_log:
+    if self.log_file is not None and is_log:
       with open(self.log_file, 'a') as f:
         f.write(f'[{datetime.now().isoformat()}] {message}\n')
 

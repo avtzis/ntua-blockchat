@@ -1,15 +1,15 @@
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src', 'blockchat'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import argparse
 import multiprocessing
 
-from bootstrap import start_bootstrap
-from client import start_node
-from node import Node, Bootstrap
+from blockchat.bootstrap import start_bootstrap
+from blockchat.client import start_node
+from blockchat.node import Node, Bootstrap
 
-from util import termcolor
+from blockchat.util import termcolor
 
 def main():
   parser = argparse.ArgumentParser()
