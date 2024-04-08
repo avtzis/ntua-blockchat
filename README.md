@@ -1,4 +1,4 @@
-# Blockchat
+# BlockChat
 A Blockchain-Based Messaging and Transaction Platform
 
 ## About
@@ -34,23 +34,119 @@ Throughout the development of BlockChat, several key learnings emerged:
 
 ### Development Environment
 
-BlockChat is developed in Python, leveraging its versatility and the extensive libraries available for building secure and efficient blockchain applications. The project is structured to run in any environment where Python is supported, including Windows, macOS, and Linux operating systems.
+BlockChat is developed in **Python**, leveraging its versatility and the extensive libraries available for building secure and efficient blockchain applications. The project is structured to run in any environment where Python is supported, including Windows, macOS, and Linux operating systems.
 
 ### Key Dependencies
 
-- [cryptography](https://pypi.org/project/cryptography/): The backbone of BlockChat's security, the `cryptography` library is used extensively for generating public/private key pairs, signing transactions, and verifying signatures. It provides robust cryptographic primitives and easy-to-use abstractions for implementing advanced cryptographic solutions.
+- [cryptography](https://pypi.org/project/cryptography/): Public/private key pairs, sign transactions, and verify signatures.
+- [prompt_toolkit](https://pypi.org/project/prompt_toolkit/): CLI prompts.
 
 ## Project Structure
-TBA
+- `dist/`: Distributable packages
+- `docs/`: Documentation, including the project assignment.
+- `scripts/`: Utility scripts.
+- `src/`: Source code directory.
+  - `blockchat/`: Main package folder.
+    - `input/`: Sample transaction files.
+    - `main/`: Application entry point.
+      - `cli/`: Command-line interface.
+      - `gui/`: Placeholder for future graphical interface.
+    - `util/`: Utility modules, e.g., `termcolor.py` for colored console output.
+    - Core modules: `block.py`, `blockchain.py`, `bootstrap.py`, `client.py`, `node.py`, `transaction.py`, `wallet.py`.
+- `tests/`: Testing directory with transaction samples.
+- `Dockerfile`: Docker container setup.
+- `pyproject.toml`, `setup.py`: Build and distribution configuration.
+- `requirements.txt`: External dependencies list.
+
 
 ## Installation
-TBA
+After cloning the repository, you can install `blockchat` as a package, or run on `docker` container:
+
+### Install as a package
+1. Create a virtual environment and activate it (optional):
+```sh
+python -m venv venv
+```
+then:
+```sh
+source venv/bin/activate
+```
+
+2. Install `build` if not already installed:
+```sh
+python -m pip install --upgrade build
+```
+
+3. Install dependencies from `requirements.txt`:
+```sh
+pip install -r requirements.txt
+```
+
+4. Build package with `build`:
+```sh
+python -m build
+```
+
+5. Install the package from `dist/`
+```sh
+pip install dist/*.whl
+```
+
+### Install using `docker`
+
+1. Build the `blockchat` image:
+```sh
+docker build -t blockchat-image .
+```
+
+2. Create the `blockchat` blockchain network:
+```sh
+docker network create blockchat-network
+```
 
 ## Usage
-TBA
 
-## Credits
-TBA
+### As a `python` module
+```sh
+python -m blockchat -h
+```
+
+- Example for 5 nodes and 10 block capacity and stake 10BCC:
+```sh
+python -m blockchat --nodes=5 --capacity=10 --stake=10
+```
+> [!NOTE]
+> With this command, a new client node connects to the blockchain network and provides a console-prompt cli for commands. To see more options, emit the `-h` flag.
+
+- To start a bootstrap node, example:
+```sh
+python -m blockchat --bootstrap --nodes=5 --capacity=10 --stake=10
+```
+
+### As a `docker` container
+
+- Example options:
+```sh
+docker run --name client-node --network blockchat-network blockchat-image:latest python -u -m blockchat -n 2 -c 5 -s 10 -td
+```
+
+- Bootstrap example:
+```sh
+docker run --name bootstrap-node --network blockchat-network blockchat-image:latest python -u -m blockchat -n 2 -c 5 -s 10 -td -b
+```
+
+> [!IMPORTANT]
+> Make sure you emit `-d` at the end and `--name` is always `bootstap-node` for bootstrap when using with `docker`
+
+- To run a node again:
+```sh
+docker start -a client-node
+```
+
+### Run a quick test
+```sh
+python tests/test_main.py -n 5 -c 10 -s 10 -vd
+```
 
 ## License
 
