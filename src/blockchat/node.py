@@ -186,8 +186,6 @@ class Node:
       address (str): The address of the node.
       port (int): The port of the node.
     """
-    print('type of bootstrap_address:', type(self.bootstrap_address))
-    print('type of bootstrap_port:', type(self.bootstrap_port))
     self.socket.settimeout(0.1)
     while True:
       try:

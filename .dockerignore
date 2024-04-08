@@ -9,4 +9,5 @@ venv/
 .dockerignore
 Dockerfile
 docker-compose.yml
-README.md
+build/
+dist/
