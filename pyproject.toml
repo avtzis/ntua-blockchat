@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blockchat"
+version = "0.1.0"
+description = "A simple blockchain network"
+authors = [{name = "Altan Avtzi", email = "avtzialtan@gmail.com"}]
+license = {text = "MIT"}
+readme = "README.md"
+keywords = ["ntua", "blockchain", "crypto", "distributed-systems"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "cffi",
+    "cryptography",
+    "pycparser",
+    "prompt_toolkit"
+]
+requires-python = ">=3.8"
+
+[project.scripts]
+cli-name = "blockchat.__main__:main"
+
+[project.urls]
+homepage = "https://github.com/avtzis/ntua-blockchat"
