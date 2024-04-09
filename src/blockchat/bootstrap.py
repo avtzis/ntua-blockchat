@@ -7,6 +7,7 @@ bootstrap process of the network.
 import socket
 import json
 import itertools
+import time
 
 from blockchat.blockchain import Blockchain
 
@@ -40,7 +41,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap, ready_queue=None, te
   bootstrap_address, bootstrap_port = bootstrap.bootstrap_address, bootstrap.bootstrap_port
 
   bootstrap.create_genesis_block(nodes_count)
-  bootstrap.add_node(0, bootstrap.wallet.get_address(), bootstrap_address, bootstrap_port, 10.0, bootstrap.nonce, bootstrap.wallet.balance)
+  bootstrap.add_node(0, bootstrap.wallet.get_address(), bootstrap_address, bootstrap_port, bootstrap.stake, bootstrap.nonce, bootstrap.wallet.balance)
 
   # Start the UDP server
   with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -85,6 +86,7 @@ def start_bootstrap(nodes_count, block_capacity, bootstrap, ready_queue=None, te
 
               if ready_queue:
                 ready_queue.put('ready')
+                time.sleep(1)
 
               if test_flag:
                 bootstrap.test_messenger.start()

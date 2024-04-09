@@ -54,17 +54,18 @@ def start_node(nodes_count, block_capacity, client, ready_queue=None, test_flag=
     try:
       while True:
         # Signal ready to CLI or start the test messenger
-        if ready_flag and client.node_counter == nodes_count:
-          ready_flag = False
-          client.log(termcolor.green('All nodes connected'))
-          client.log(termcolor.blue('Ready to send transactions'))
+        if client.node_counter == nodes_count:
+          if ready_flag:
+            ready_flag = False
+            client.log(termcolor.green('All nodes connected'))
+            client.log(termcolor.blue('Ready to send transactions'))
 
-          if ready_queue:
-            ready_queue.put('ready')
+            if ready_queue:
+              ready_queue.put('ready')
+              time.sleep(0.1)
 
-          time.sleep(0.1)
-
-          if test_flag:
+          if test_flag and all(node['balance'] > 0 for node in client.blockchain.nodes):  # and False:
+            test_flag = False
             client.test_messenger.start()
 
         message, (address, port) = s.recvfrom(4096*block_capacity)
